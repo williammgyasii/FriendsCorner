@@ -11,6 +11,8 @@ public readonly record struct Position(double X, double Y);
 public sealed class Room
 {
     private const double Speed = 160;
+    private const double FloorWidth = 480;
+    private const double FloorHeight = 320;
 
     private readonly Dictionary<Seat, Position> _positions = new();
     private readonly Dictionary<Seat, (double X, double Y)> _directions = new();
@@ -45,6 +47,11 @@ public sealed class Room
             return false;
         }
 
+        if (x is < -1 or > 1 || y is < -1 or > 1)
+        {
+            return false;
+        }
+
         _directions[seat] = (x, y);
         return true;
     }
@@ -55,9 +62,13 @@ public sealed class Room
         {
             var position = _positions[seat];
             var direction = _directions[seat];
+            var length = Math.Sqrt((direction.X * direction.X) + (direction.Y * direction.Y));
+            var scale = length > 1 ? 1 / length : 1;
+            var x = position.X + (direction.X * scale * Speed * seconds);
+            var y = position.Y + (direction.Y * scale * Speed * seconds);
             _positions[seat] = new Position(
-                position.X + (direction.X * Speed * seconds),
-                position.Y + (direction.Y * Speed * seconds));
+                Math.Clamp(x, 0, FloorWidth),
+                Math.Clamp(y, 0, FloorHeight));
         }
     }
 
