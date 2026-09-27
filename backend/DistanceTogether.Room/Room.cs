@@ -61,6 +61,17 @@ public sealed class Room
         return true;
     }
 
+    public bool TryRematch()
+    {
+        if (TicTacToe is null || !TicTacToe.TryRematch(out var updated))
+        {
+            return false;
+        }
+
+        TicTacToe = updated;
+        return true;
+    }
+
     public bool TryAddSeat(out Seat seat)
     {
         if (!_positions.ContainsKey(Seat.A))

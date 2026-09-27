@@ -70,4 +70,53 @@ public class BoardTests
         Assert.True(board.IsDraw);
     }
 
+    [Fact]
+    public void A_finished_board_can_be_played_again()
+    {
+        AssertCleared(FinishedWin());
+        AssertCleared(FinishedDraw());
+    }
+
+    [Fact]
+    public void A_rematch_in_the_middle_of_a_game_is_refused()
+    {
+        Assert.True(Board.Empty().TryPlace(Seat.A, 0, out var board));
+
+        Assert.False(board.TryRematch(out var again));
+        Assert.Equal('X', again.Squares[0]);
+        Assert.Equal(Seat.B, again.Next);
+    }
+
+    private static void AssertCleared(Board board)
+    {
+        Assert.True(board.TryRematch(out var again));
+        Assert.Equal(9, again.Squares.Count);
+        Assert.All(again.Squares, square => Assert.Null(square));
+        Assert.Equal(Seat.A, again.Next);
+        Assert.Null(again.Winner);
+        Assert.False(again.IsDraw);
+    }
+
+    private static Board FinishedWin()
+    {
+        var board = Board.Empty();
+        Assert.True(board.TryPlace(Seat.A, 0, out board));
+        Assert.True(board.TryPlace(Seat.B, 3, out board));
+        Assert.True(board.TryPlace(Seat.A, 1, out board));
+        Assert.True(board.TryPlace(Seat.B, 4, out board));
+        Assert.True(board.TryPlace(Seat.A, 2, out board));
+        return board;
+    }
+
+    private static Board FinishedDraw()
+    {
+        var board = Board.Empty();
+        int[] squares = [0, 1, 2, 4, 3, 5, 7, 6, 8];
+        foreach (var square in squares)
+        {
+            Assert.True(board.TryPlace(board.Next, square, out board));
+        }
+
+        return board;
+    }
 }

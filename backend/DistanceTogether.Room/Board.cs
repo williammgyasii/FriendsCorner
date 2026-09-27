@@ -49,6 +49,18 @@ public sealed class Board
         return true;
     }
 
+    public bool TryRematch(out Board updated)
+    {
+        updated = this;
+        if (Winner is null && !IsDraw)
+        {
+            return false;
+        }
+
+        updated = Empty();
+        return true;
+    }
+
     public static Board FromRow(string squares, string nextSeat)
     {
         if (squares.Length != 9)

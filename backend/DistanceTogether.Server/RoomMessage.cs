@@ -47,6 +47,14 @@ public static class RoomMessage
                 };
             }
 
+            if (type == "rematch")
+            {
+                return new Applied(null, false)
+                {
+                    ChangedBoard = room.TryRematch(),
+                };
+            }
+
             if (type == "place")
             {
                 if (!root.TryGetProperty("square", out var squareElement) || !squareElement.TryGetInt32(out var square))
