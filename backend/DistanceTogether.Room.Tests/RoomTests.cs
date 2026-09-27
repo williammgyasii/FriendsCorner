@@ -103,4 +103,20 @@ public class RoomTests
         Assert.Equal(Seat.A, seatA);
         Assert.Equal(Seat.B, seatB);
     }
+
+    [Fact]
+    public void Launching_the_room_opens_that_world()
+    {
+        var room = new Room();
+
+        Assert.Null(room.World);
+        Assert.False(room.TryLaunch("cards"));
+        Assert.Null(room.World);
+
+        Assert.True(room.TryLaunch("room"));
+        Assert.Equal("room", room.World);
+        Assert.True(room.TryLaunch("room"));
+        Assert.False(room.TryLaunch("cards"));
+        Assert.Equal("room", room.World);
+    }
 }

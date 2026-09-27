@@ -19,6 +19,48 @@ public sealed class Room
 
     public IReadOnlyDictionary<Seat, Position> Positions => _positions;
 
+    public string? World { get; private set; }
+
+    public bool TryLaunch(string world)
+    {
+        if (world is not ("room" or "tictactoe"))
+        {
+            return false;
+        }
+
+        if (World is not null && World != world)
+        {
+            return false;
+        }
+
+        World = world;
+        if (world == "tictactoe")
+        {
+            TicTacToe ??= Board.Empty();
+        }
+
+        return true;
+    }
+
+    public Board? TicTacToe { get; private set; }
+
+    public void RestoreTicTacToe(Board board)
+    {
+        World = "tictactoe";
+        TicTacToe = board;
+    }
+
+    public bool TryPlace(Seat seat, int square)
+    {
+        if (TicTacToe is null || !TicTacToe.TryPlace(seat, square, out var updated))
+        {
+            return false;
+        }
+
+        TicTacToe = updated;
+        return true;
+    }
+
     public bool TryAddSeat(out Seat seat)
     {
         if (!_positions.ContainsKey(Seat.A))
