@@ -11,15 +11,20 @@ public sealed class RoomRegistry
     private readonly Dictionary<string, RoomSession> _rooms = new();
     private readonly Lock _gate = new();
     private readonly BoardTable _boards;
+    private readonly BoardRecorder _recorder;
 
-    public RoomRegistry(BoardTable boards) => _boards = boards;
+    public RoomRegistry(BoardTable boards, BoardRecorder recorder)
+    {
+        _boards = boards;
+        _recorder = recorder;
+    }
 
     public string Create()
     {
         var id = Guid.NewGuid().ToString("N");
         lock (_gate)
         {
-            _rooms[id] = new RoomSession(id, () => Remove(id), _boards);
+            _rooms[id] = new RoomSession(id, () => Remove(id), _recorder);
         }
 
         return id;
@@ -56,7 +61,7 @@ public sealed class RoomRegistry
                 return existing;
             }
 
-            var session = new RoomSession(id, () => Remove(id), _boards);
+            var session = new RoomSession(id, () => Remove(id), _recorder);
             session.RestoreTicTacToe(board);
             _rooms[id] = session;
             return session;
@@ -76,18 +81,18 @@ public sealed class RoomSession
 {
     private readonly Room _room = new();
     private readonly string _roomId;
-    private readonly BoardTable _boards;
+    private readonly BoardRecorder _recorder;
     private readonly Action _onEmpty;
     private readonly Lock _gate = new();
     private readonly Dictionary<Seat, WebSocket> _sockets = new();
     private readonly CancellationTokenSource _stopping = new();
     private int _clockStarted;
 
-    public RoomSession(string roomId, Action onEmpty, BoardTable boards)
+    public RoomSession(string roomId, Action onEmpty, BoardRecorder recorder)
     {
         _roomId = roomId;
         _onEmpty = onEmpty;
-        _boards = boards;
+        _recorder = recorder;
     }
 
     public void RestoreTicTacToe(Board board) => _room.RestoreTicTacToe(board);
@@ -181,14 +186,14 @@ public sealed class RoomSession
                 await Forward(seat, applied.Forward, cancellationToken);
             }
 
-            if (applied.ChangedBoard && _room.TicTacToe is not null)
-            {
-                await _boards.Save(_roomId, _room.TicTacToe);
-            }
-
             if (applied.OpenedWorld || applied.ChangedBoard)
             {
                 await Broadcast(cancellationToken, tick: false);
+            }
+
+            if (applied.ChangedBoard && _room.TicTacToe is not null)
+            {
+                _recorder.Note(_roomId, _room.TicTacToe);
             }
         }
     }

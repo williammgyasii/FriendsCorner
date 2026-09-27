@@ -7,6 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
     ?? throw new InvalidOperationException("DATABASE_URL is missing.");
 builder.Services.AddSingleton(new BoardTable(databaseUrl));
+builder.Services.AddSingleton(services => new BoardRecorder(services.GetRequiredService<BoardTable>().Save));
+builder.Services.AddHostedService<BoardRecordingService>();
 builder.Services.AddSingleton<RoomRegistry>();
 
 var app = builder.Build();
