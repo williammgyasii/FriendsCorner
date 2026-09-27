@@ -421,9 +421,20 @@ button.quiet {
     transform 0.1s ease;
 }
 
-.grid button:not(:disabled):hover {
-  background: color-mix(in srgb, var(--turn) 14%, #fff);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .grid button:not(:disabled):hover {
+    background: color-mix(in srgb, var(--turn) 14%, #fff);
+    transform: translateY(-2px);
+  }
+
+  .chunky:hover {
+    transform: translateY(-1px);
+  }
+}
+
+button {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .grid button:not(:disabled):active {
@@ -530,10 +541,6 @@ button.quiet {
   transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
 
-.chunky:hover {
-  transform: translateY(-1px);
-}
-
 .chunky:active {
   transform: translateY(5px);
   box-shadow: 0 1px 0 color-mix(in srgb, var(--turn) 60%, #1c1915);
@@ -572,26 +579,232 @@ button.quiet {
   }
 }
 
-@media (max-width: 640px) {
-  .player {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    text-align: center;
-    gap: 8px;
-  }
+.stage {
+  padding-bottom: max(clamp(12px, 2.4dvh, 28px), env(safe-area-inset-bottom));
+}
 
-  .player-face {
-    width: min(100%, clamp(72px, 14dvh, 140px));
-  }
+.screen[data-layout="portrait"] .stage {
+  gap: 12px;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(14px, env(safe-area-inset-bottom));
+}
 
-  .player-info {
-    grid-template-columns: auto auto;
-    justify-content: center;
-  }
+.screen[data-layout="portrait"] .versus {
+  gap: 8px;
+}
 
-  .player-mark {
-    width: 28px;
-  }
+.screen[data-layout="portrait"] .vs {
+  font-size: 20px;
+}
+
+.screen[data-layout="portrait"] .player,
+.screen[data-layout="sideways"] .player {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.screen[data-layout="portrait"] .player {
+  padding: 8px;
+  border-radius: 20px;
+}
+
+.screen[data-layout="portrait"] .player-face {
+  width: min(100%, clamp(84px, 15dvh, 150px));
+  border-radius: 14px;
+}
+
+.screen[data-layout="portrait"] .player-info,
+.screen[data-layout="sideways"] .player-info {
+  grid-template-columns: auto auto;
+  justify-content: center;
+}
+
+.screen[data-layout="portrait"] .player-mark,
+.screen[data-layout="sideways"] .player-mark {
+  width: 26px;
+}
+
+.screen[data-layout="portrait"] .player-label {
+  font-size: 18px;
+}
+
+.screen[data-layout="portrait"] .board {
+  width: min(100cqw, 100cqh);
+  border-radius: 26px;
+}
+
+.screen[data-layout="portrait"] .grid button {
+  border-radius: 16px;
+}
+
+.screen[data-layout="portrait"] .action-bar {
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.screen[data-layout="portrait"] .action-bar .marks-status {
+  font-size: 22px;
+}
+
+.screen[data-layout="portrait"] .chunky {
+  width: 100%;
+  max-width: 360px;
+  padding: 14px 20px;
+}
+
+.screen[data-layout="sideways"] .stage {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "left arena right"
+    "left bar right";
+  gap: 8px 14px;
+  max-width: none;
+  padding: 10px max(14px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+}
+
+.screen[data-layout="sideways"] .versus {
+  display: contents;
+}
+
+.screen[data-layout="sideways"] .vs {
+  display: none;
+}
+
+.screen[data-layout="sideways"] #card-left {
+  grid-area: left;
+  align-self: center;
+  justify-self: stretch;
+}
+
+.screen[data-layout="sideways"] #card-right {
+  grid-area: right;
+  align-self: center;
+  justify-self: stretch;
+}
+
+.screen[data-layout="sideways"] .arena {
+  grid-area: arena;
+}
+
+.screen[data-layout="sideways"] .action-bar {
+  grid-area: bar;
+  gap: 12px;
+  min-height: 0;
+}
+
+.screen[data-layout="sideways"] .player-face {
+  width: min(100%, 38dvh * 4 / 3);
+}
+
+.screen[data-layout="sideways"] .player-label {
+  font-size: 17px;
+}
+
+.screen[data-layout="sideways"] .player-note {
+  font-size: 13px;
+}
+
+.screen[data-layout="sideways"] .board {
+  width: min(100cqw, 100cqh);
+  padding: 8px;
+  border-width: 3px;
+  border-radius: 22px;
+  box-shadow:
+    0 6px 0 var(--turn),
+    0 18px 40px color-mix(in srgb, var(--turn) 22%, transparent);
+}
+
+.screen[data-layout="sideways"] .grid {
+  gap: 6px;
+}
+
+.screen[data-layout="sideways"] .grid button {
+  border-radius: 12px;
+}
+
+.screen[data-layout="sideways"] .strike {
+  inset: 8px;
+  width: calc(100% - 16px);
+  height: calc(100% - 16px);
+}
+
+.screen[data-layout="sideways"] .action-bar .marks-status {
+  font-size: 18px;
+}
+
+.screen[data-layout="sideways"] .chunky {
+  padding: 8px 18px;
+  font-size: 16px;
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--turn) 60%, #1c1915);
+}
+
+.screen[data-layout="portrait"] .face-dock,
+.screen[data-layout="sideways"] .face-dock {
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  gap: 8px;
+}
+
+.screen[data-layout="portrait"] .face-dock .slot,
+.screen[data-layout="sideways"] .face-dock .slot {
+  width: 104px;
+  height: 74px;
+  border-radius: 12px;
+}
+
+.screen[data-layout="portrait"] .lobby {
+  padding: 112px 18px 32px;
+}
+
+.screen[data-layout="sideways"] .lobby {
+  padding: 96px 24px 24px;
+}
+
+.screen[data-layout="portrait"] .lobby h1 {
+  font-size: 40px;
+}
+
+.screen[data-layout="portrait"] .game {
+  width: 100%;
+}
+
+.screen[data-layout="portrait"] .game h2 {
+  font-size: 26px;
+}
+
+.screen[data-layout="sideways"] .games {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.screen[data-layout="portrait"] .actions button {
+  flex: 1;
+}
+
+.screen[data-layout="portrait"] .floor-world,
+.screen[data-layout="sideways"] .floor-world {
+  padding: 96px 10px 150px;
+}
+
+.screen[data-layout="sideways"].world-room .face-dock {
+  flex-direction: column;
+}
+
+.screen[data-layout="sideways"] .floor-world {
+  padding: 10px 150px 10px 128px;
+}
+
+.screen[data-layout="sideways"] .floor {
+  width: min(100%, calc((100dvh - 24px) * 1.5));
+}
+
+.screen[data-layout="sideways"] .pad {
+  width: 112px;
+  height: 112px;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
 }
 
 @media (prefers-reduced-motion: reduce) {

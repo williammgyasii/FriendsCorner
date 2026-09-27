@@ -1,6 +1,7 @@
 import { FaceCall, type SignalPayload } from './faceCall.ts'
 import '@fontsource-variable/fredoka'
 import confetti from 'canvas-confetti'
+import { pickLayout } from './layout.ts'
 import { describeMarks, describePlayers, type PlayerCard } from './marksLook.ts'
 import { placeFigures, wallHeight, type PlacedFigure } from './roomLook.ts'
 import './style.css'
@@ -137,6 +138,11 @@ function renderRoom(root: HTMLDivElement, id: string) {
   }
 
   const screen = root.querySelector<HTMLDivElement>('#screen')!
+  const fitLayout = () => {
+    screen.dataset.layout = pickLayout(window.innerWidth, window.innerHeight)
+  }
+  fitLayout()
+  window.addEventListener('resize', fitLayout)
   const localVideo = root.querySelector<HTMLVideoElement>('#local-face')!
   const localNote = root.querySelector<HTMLParagraphElement>('#local-note')!
   const faceNotes = {
@@ -354,6 +360,10 @@ function renderRoom(root: HTMLDivElement, id: string) {
       socket.send(JSON.stringify({ type: 'direction', x, y }))
     }
   }
+
+  window.addEventListener('pointerdown', () => {
+    void video.play().catch(() => undefined)
+  })
 
   window.addEventListener('keydown', (event) => {
     void video.play().catch(() => undefined)
