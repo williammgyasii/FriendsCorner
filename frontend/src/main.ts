@@ -1,6 +1,7 @@
 import { FaceCall, type SignalPayload } from './faceCall.ts'
 import '@fontsource-variable/fredoka'
 import confetti from 'canvas-confetti'
+import { loadIceServers } from './ice.ts'
 import { pickLayout } from './layout.ts'
 import { describeMarks, describePlayers, type PlayerCard } from './marksLook.ts'
 import { placeFigures, wallHeight, type PlacedFigure } from './roomLook.ts'
@@ -163,6 +164,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
       portrait.className = `slot portrait ${tile}`
       faceNote.textContent = faceNotes[tile]
     },
+    () => loadIceServers(id),
   )
   const cameraReady = navigator.mediaDevices
     .getUserMedia({ video: true, audio: true })

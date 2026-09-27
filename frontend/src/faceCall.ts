@@ -21,15 +21,18 @@ export class FaceCall {
   private readonly sendPayload: (payload: SignalPayload) => void
   private readonly video: HTMLVideoElement
   private readonly onTile: (tile: FaceTile) => void
+  private readonly iceServers: () => Promise<RTCIceServer[]>
 
   constructor(
     sendPayload: (payload: SignalPayload) => void,
     video: HTMLVideoElement,
     onTile: (tile: FaceTile) => void,
+    iceServers: () => Promise<RTCIceServer[]> = async () => [],
   ) {
     this.sendPayload = sendPayload
     this.video = video
     this.onTile = onTile
+    this.iceServers = iceServers
   }
 
   otherLeft() {
@@ -45,7 +48,11 @@ export class FaceCall {
     this.starting = true
     const generation = this.generation
     this.publish('waiting')
-    const pc = new RTCPeerConnection()
+    const iceServers = await this.iceServers()
+    if (generation !== this.generation) {
+      return
+    }
+    const pc = new RTCPeerConnection({ iceServers })
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         this.sendPayload({ kind: 'ice', candidate: event.candidate.toJSON() })
