@@ -6,3 +6,6 @@ dist-ssr
 bin/
 obj/
 .vs/
+.env
+.env.*
+!.env.example
