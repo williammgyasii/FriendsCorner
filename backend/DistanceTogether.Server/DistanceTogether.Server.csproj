@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DistanceTogether.Room\DistanceTogether.Room.csproj" />
+    <ProjectReference Include="..\DistanceTogether.Storage\DistanceTogether.Storage.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
