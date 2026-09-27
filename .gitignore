@@ -9,3 +9,10 @@ obj/
 .env
 .env.*
 !.env.example
+.wrangler/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+crash.log
