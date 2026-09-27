@@ -16,6 +16,9 @@ app.UseWebSockets();
 
 app.MapPost("/rooms", (RoomRegistry registry) => Results.Json(new { id = registry.Create() }));
 
+app.MapGet("/rooms/{roomId}", (string roomId, RoomRegistry registry) =>
+    registry.TryGet(roomId, out _) ? Results.NoContent() : Results.NotFound());
+
 app.Map("/ws/{roomId}", async (HttpContext context, string roomId, RoomRegistry registry) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
