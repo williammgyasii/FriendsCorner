@@ -1,0 +1,116 @@
+name: Deploy
+
+# Pushing a version tag (git tag v0.2.0 && git push origin v0.2.0) is the approval to ship.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time; a newer push waits instead of cancelling a half-finished deploy.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  # Compares this tag with the previous one; the first tag or a manual run ships everything.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.diff.outputs.api }}
+      web: ${{ steps.diff.outputs.web }}
+      infra: ${{ steps.diff.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        run: |
+          previous=$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ -z "$previous" ]; then
+            echo "Shipping everything"
+            printf 'api=true\nweb=true\ninfra=true\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$previous" HEAD)
+          echo "Changed since $previous:"; echo "$changed"
+          has() { echo "$changed" | grep -qE "$1" && echo true || echo false; }
+          {
+            echo "api=$(has '^(backend/|edge/api/|edge/package)')"
+            echo "web=$(has '^(frontend/|edge/web/|edge/package)')"
+            echo "infra=$(has '^infra/')"
+          } >> "$GITHUB_OUTPUT"
+
+  deploy-api:
+    needs: [checks, changes]
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: edge
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: edge/package-lock.json
+      - run: npm ci
+      - run: npm run deploy:api
+
+  # The web Worker binds to the API Worker, so the API ships first when both change.
+  deploy-web:
+    needs: [checks, changes, deploy-api]
+    if: >-
+      always() &&
+      needs.checks.result == 'success' &&
+      needs.changes.outputs.web == 'true' &&
+      contains(fromJSON('["success", "skipped"]'), needs.deploy-api.result)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            edge/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: frontend
+      - run: npm ci && npm run deploy:web
+        working-directory: edge
+
+  terraform-apply:
+    needs: [checks, changes, deploy-web]
+    if: >-
+      always() &&
+      needs.checks.result == 'success' &&
+      needs.changes.outputs.infra == 'true' &&
+      contains(fromJSON('["success", "skipped"]'), needs.deploy-web.result)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+      - run: terraform init -input=false
+      - run: terraform plan -input=false -no-color -lock-timeout=2m -out=apply.tfplan
+      - run: terraform apply -input=false -no-color apply.tfplan
