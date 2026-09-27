@@ -1,0 +1,19 @@
+{
+  "name": "edge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "deploy:api": "wrangler deploy -c api/wrangler.jsonc",
+    "deploy:web": "wrangler deploy -c web/wrangler.jsonc"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "^0.3.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260927.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.142.0"
+  }
+}
