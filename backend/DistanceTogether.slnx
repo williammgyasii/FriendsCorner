@@ -2,4 +2,5 @@
   <Project Path="DistanceTogether.Room.Tests/DistanceTogether.Room.Tests.csproj" />
   <Project Path="DistanceTogether.Room/DistanceTogether.Room.csproj" />
   <Project Path="DistanceTogether.Server/DistanceTogether.Server.csproj" />
+  <Project Path="DistanceTogether.Storage/DistanceTogether.Storage.csproj" />
 </Solution>
