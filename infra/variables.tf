@@ -7,3 +7,8 @@ variable "domain" {
   type    = string
   default = "distancetogether.app"
 }
+
+variable "worker_name" {
+  type    = string
+  default = "distancetogether-web"
+}
