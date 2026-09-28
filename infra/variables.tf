@@ -5,10 +5,10 @@ variable "account_id" {
 
 variable "domain" {
   type    = string
-  default = "distancetogether.app"
+  default = "friendscorner.app"
 }
 
 variable "worker_name" {
   type    = string
-  default = "distancetogether-web"
+  default = "friendscorner-web"
 }

@@ -12,8 +12,8 @@ terraform {
   # this configuration cannot create the place it stores its own state.
   # Credentials come from AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY (infra/.env).
   backend "s3" {
-    bucket = "distancetogether-tfstate"
-    key    = "distancetogether/terraform.tfstate"
+    bucket = "friendscorner-tfstate"
+    key    = "friendscorner/terraform.tfstate"
     region = "auto"
 
     endpoints = {
