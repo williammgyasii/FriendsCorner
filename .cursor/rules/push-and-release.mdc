@@ -9,7 +9,7 @@ When William says the word, that is his approval for the whole flow below. Nothi
 
 ## "Push" = open a PR and merge it through CI
 
-`backend.yml`, `frontend.yml`, and `terraform.yml` only run on pull requests into `main` that touch their paths, so a push straight to `main` skips CI. Never push to `main` directly. A PR that touches none of their paths (only `openspec/` or `.cursor/`) has no checks; that is expected.
+`backend-ci.yml`, `frontend-ci.yml`, and `terraform-ci.yml` only run on pull requests into `main` that touch their paths, so a push straight to `main` skips CI. Never push to `main` directly. A PR that touches none of their paths (only `openspec/` or `.cursor/`) has no checks; that is expected.
 
 1. Commit on a branch named for the change (`add-letter-tiles`), not on `main`.
 2. Push the branch and `gh pr create --base main` with a summary and a test plan.
@@ -19,7 +19,7 @@ When William says the word, that is his approval for the whole flow below. Nothi
 
 ## "Release" = tag `main`, which deploys to production
 
-There is one environment: production. `release.yml` runs on a `v*` tag. For each area that changed since the last tag it calls that area's workflow with `deploy: true`, in order: backend (API Worker), then frontend (web Worker, which binds to the API), then Terraform. A failure stops everything after it.
+There is one environment: production. `release.yml` runs on a `v*` tag. For each area that changed since the last tag it calls that area's CD workflow (`*-cd.yml`, which runs its `*-ci.yml` first), in order: backend (API Worker), then frontend (web Worker, which binds to the API), then Terraform. A failure stops everything after it.
 
 1. If there is unmerged work, "push" it first. Only tag a commit that is on `origin/main` and has passed CI.
 2. Pick the next version from `git tag --sort=-v:refname`. Default is a minor bump for features (`v0.1.0` → `v0.2.0`) and a patch bump for fixes. Say which one you chose.

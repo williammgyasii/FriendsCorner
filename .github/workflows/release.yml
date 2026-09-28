@@ -39,17 +39,15 @@ jobs:
           echo "Changed since $previous:"; echo "$changed"
           has() { echo "$changed" | grep -qE "$1" && echo true || echo false; }
           {
-            echo "backend=$(has '^(backend/|edge/api/|edge/package|\.github/workflows/backend\.yml)')"
-            echo "frontend=$(has '^(frontend/|edge/web/|edge/package|\.github/workflows/frontend\.yml)')"
-            echo "terraform=$(has '^(infra/|\.github/workflows/terraform\.yml)')"
+            echo "backend=$(has '^(backend/|edge/api/|edge/package|\.github/workflows/backend-)')"
+            echo "frontend=$(has '^(frontend/|edge/web/|edge/package|\.github/workflows/frontend-)')"
+            echo "terraform=$(has '^(infra/|\.github/workflows/terraform-)')"
           } >> "$GITHUB_OUTPUT"
 
   backend:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
-    uses: ./.github/workflows/backend.yml
-    with:
-      deploy: true
+    uses: ./.github/workflows/backend-cd.yml
     secrets: inherit
 
   # The web Worker binds to the API Worker, so the backend ships first when both change.
@@ -59,9 +57,7 @@ jobs:
       always() &&
       needs.changes.outputs.frontend == 'true' &&
       contains(fromJSON('["success", "skipped"]'), needs.backend.result)
-    uses: ./.github/workflows/frontend.yml
-    with:
-      deploy: true
+    uses: ./.github/workflows/frontend-cd.yml
     secrets: inherit
 
   terraform:
@@ -71,7 +67,5 @@ jobs:
       needs.changes.outputs.terraform == 'true' &&
       contains(fromJSON('["success", "skipped"]'), needs.backend.result) &&
       contains(fromJSON('["success", "skipped"]'), needs.frontend.result)
-    uses: ./.github/workflows/terraform.yml
-    with:
-      deploy: true
+    uses: ./.github/workflows/terraform-cd.yml
     secrets: inherit

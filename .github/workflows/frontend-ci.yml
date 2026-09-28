@@ -1,4 +1,4 @@
-name: Frontend
+name: Frontend CI
 
 on:
   pull_request:
@@ -6,12 +6,8 @@ on:
     paths:
       - 'frontend/**'
       - 'edge/**'
-      - '.github/workflows/frontend.yml'
+      - '.github/workflows/frontend-*.yml'
   workflow_call:
-    inputs:
-      deploy:
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -33,7 +29,7 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  # One npm package holds both Workers, so its tests run here and in backend.yml.
+  # One npm package holds both Workers, so its tests run here and in backend-ci.yml.
   edge:
     runs-on: ubuntu-latest
     defaults:
@@ -49,24 +45,3 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run typecheck
-
-  deploy:
-    needs: [test, edge]
-    if: inputs.deploy
-    runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: npm
-          cache-dependency-path: |
-            frontend/package-lock.json
-            edge/package-lock.json
-      - run: npm ci && npm run build
-        working-directory: frontend
-      - run: npm ci && npm run deploy:web
-        working-directory: edge
