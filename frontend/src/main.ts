@@ -1,6 +1,17 @@
 import { FaceCall, type SignalPayload } from './faceCall.ts'
 import '@fontsource-variable/fredoka'
 import confetti from 'canvas-confetti'
+import {
+  checkedKing,
+  describeChess,
+  needsPromotion,
+  pieceHint,
+  piecesFrom,
+  squaresInView,
+  targetsFrom,
+  type ChessCard,
+  type ChessState,
+} from './chessLook.ts'
 import { loadIceServers } from './ice.ts'
 import { pickLayout } from './layout.ts'
 import { describeMarks, describePlayers, type PlayerCard } from './marksLook.ts'
@@ -48,7 +59,22 @@ type StateMessage = {
   you: 'A' | 'B'
   world: string | null
   board: BoardState | null
+  chess: ChessState | null
   players: { A: Player; B: Player }
+}
+
+const chessGlyph: Record<string, string> = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
+const promotionChoices = [
+  { piece: 'q', name: 'Queen' },
+  { piece: 'r', name: 'Rook' },
+  { piece: 'b', name: 'Bishop' },
+  { piece: 'n', name: 'Knight' },
+]
+
+// U+FE0E keeps iOS from drawing the pawn as an emoji.
+function pieceHtml(piece: string) {
+  const side = piece === piece.toUpperCase() ? 'white' : 'black'
+  return `<span class="piece piece-${side}" aria-hidden="true">${chessGlyph[piece.toLowerCase()]}\uFE0E</span>`
 }
 
 function renderRoom(root: HTMLDivElement, id: string) {
@@ -79,6 +105,11 @@ function renderRoom(root: HTMLDivElement, id: string) {
             <h2>Tic-tac-toe</h2>
             <p>Nine squares. You are X, they are O.</p>
           </button>
+          <button class="game" type="button" data-world="chess">
+            <p class="kicker">Selected</p>
+            <h2>Chess</h2>
+            <p>The classic. Tap a piece and the board shows where it can go.</p>
+          </button>
         </div>
         <div class="actions">
           <button id="launch" type="button">Start</button>
@@ -92,7 +123,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
       <section class="world marks-world" id="marks-world">
         <div class="stage" id="marks-board">
           <header class="versus">
-            <div class="player" id="card-left">
+            <div class="player card-left" id="card-left">
               <div class="player-face" id="face-left"></div>
               <div class="player-info">
                 <span class="player-mark"></span>
@@ -101,7 +132,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
               </div>
             </div>
             <span class="vs">VS</span>
-            <div class="player" id="card-right">
+            <div class="player card-right" id="card-right">
               <div class="player-face" id="face-right"></div>
               <div class="player-info">
                 <span class="player-mark"></span>
@@ -121,6 +152,45 @@ function renderRoom(root: HTMLDivElement, id: string) {
           <footer class="action-bar">
             <p class="marks-status" id="marks-status"></p>
             <button class="chunky" id="rematch" type="button" hidden>Play again</button>
+          </footer>
+        </div>
+      </section>
+      <section class="world chess-world" id="chess-world">
+        <div class="stage" id="chess-stage">
+          <header class="versus">
+            <div class="player card-left" id="chess-card-left">
+              <div class="player-face"></div>
+              <div class="player-info">
+                <span class="player-mark"></span>
+                <strong class="player-label"></strong>
+                <span class="player-note"></span>
+              </div>
+            </div>
+            <span class="vs">VS</span>
+            <div class="player card-right" id="chess-card-right">
+              <div class="player-face"></div>
+              <div class="player-info">
+                <span class="player-mark"></span>
+                <strong class="player-label"></strong>
+                <span class="player-note"></span>
+              </div>
+            </div>
+          </header>
+          <div class="arena">
+            <div class="board chess-board">
+              <div class="chess-grid" id="chess-grid"></div>
+              <div class="promotion" id="promotion" hidden>
+                <p>Your pawn made it across! Pick what it becomes.</p>
+                <div class="promotion-choices" id="promotion-choices"></div>
+              </div>
+            </div>
+          </div>
+          <footer class="action-bar">
+            <div class="chess-words">
+              <p class="marks-status" id="chess-status"></p>
+              <p class="chess-hint" id="chess-hint"></p>
+            </div>
+            <button class="chunky" id="chess-rematch" type="button" hidden>Play again</button>
           </footer>
         </div>
       </section>
@@ -187,7 +257,8 @@ function renderRoom(root: HTMLDivElement, id: string) {
     const selected = root.querySelector<HTMLButtonElement>('.game.selected')?.dataset.world ?? 'room'
     if (socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: 'launch', world: selected }))
-      status.textContent = selected === 'tictactoe' ? 'Opening Tic-tac-toe…' : 'Opening The Room…'
+      const names: Record<string, string> = { tictactoe: 'Tic-tac-toe', chess: 'Chess', room: 'The Room' }
+      status.textContent = `Opening ${names[selected] ?? 'The Room'}…`
     }
   })
   root.querySelectorAll<HTMLButtonElement>('.game').forEach((card) => {
@@ -222,22 +293,163 @@ function renderRoom(root: HTMLDivElement, id: string) {
     }
   })
 
+  const chessCards = {
+    left: root.querySelector<HTMLDivElement>('#chess-card-left')!,
+    right: root.querySelector<HTMLDivElement>('#chess-card-right')!,
+  }
+  const chessStage = root.querySelector<HTMLDivElement>('#chess-stage')!
+  const chessGrid = root.querySelector<HTMLDivElement>('#chess-grid')!
+  const chessStatus = root.querySelector<HTMLParagraphElement>('#chess-status')!
+  const chessHint = root.querySelector<HTMLParagraphElement>('#chess-hint')!
+  const chessRematch = root.querySelector<HTMLButtonElement>('#chess-rematch')!
+  const promotion = root.querySelector<HTMLDivElement>('#promotion')!
+  const promotionButtons = root.querySelector<HTMLDivElement>('#promotion-choices')!
+  let chessState: ChessState | null = null
+  let chessHere = { A: false, B: false }
+  let selected: string | null = null
+  let inspected: string | null = null
+  let pendingPromotion: { from: string; to: string } | null = null
+  let chessCelebrated = ''
+
+  const sendChessMove = (from: string, to: string, piece?: string) => {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'chess-move', from, to, ...(piece ? { promotion: piece } : {}) }))
+    }
+  }
+
+  chessRematch.addEventListener('click', () => {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'chess-rematch' }))
+    }
+  })
+
+  const paintChessCard = (element: HTMLDivElement, card: ChessCard) => {
+    element.style.setProperty('--seat', card.color)
+    element.classList.toggle('active', card.active)
+    element.classList.toggle('quiet', !card.active && card.note !== 'Waiting')
+    element.querySelector('.player-mark')!.innerHTML = pieceHtml(card.side === 'White' ? 'K' : 'k')
+    element.querySelector('.player-label')!.textContent = `${card.label} · ${card.side}`
+    element.querySelector('.player-note')!.textContent = card.note
+  }
+
+  const chooseChessSquare = (square: string) => {
+    if (!chessState) {
+      return
+    }
+    const look = describeChess(chessState, you, chessHere)
+    const pieces = piecesFrom(chessState.fen)
+    const piece = pieces.get(square)
+    if (selected && look.canMove && targetsFrom(chessState.legalMoves, selected).includes(square)) {
+      if (needsPromotion(chessState.legalMoves, selected, square)) {
+        pendingPromotion = { from: selected, to: square }
+      } else {
+        sendChessMove(selected, square)
+      }
+      selected = null
+      inspected = null
+      renderChess()
+      return
+    }
+
+    inspected = piece ?? null
+    const mine = piece !== undefined && (piece === piece.toUpperCase()) === look.youAreWhite
+    selected = look.canMove && mine && selected !== square ? square : null
+    renderChess()
+  }
+
+  const renderChess = () => {
+    if (!chessState) {
+      return
+    }
+    const chess = chessState
+    const look = describeChess(chess, you, chessHere)
+    const pieces = piecesFrom(chess.fen)
+    const targets = selected ? targetsFrom(chess.legalMoves, selected) : []
+    const inCheck = checkedKing(chess)
+
+    chessStage.classList.toggle('celebrating', look.celebrate !== null)
+    screen.style.setProperty('--turn', look.color)
+    paintChessCard(chessCards.left, look.left)
+    paintChessCard(chessCards.right, look.right)
+    chessStatus.textContent = look.celebrate ?? look.status
+    chessRematch.hidden = !look.canRematch
+    if (look.canRematch) {
+      chessHint.textContent = 'Play again and you swap colors.'
+    } else if (inspected) {
+      chessHint.textContent = pieceHint(inspected)
+    } else if (look.canMove) {
+      chessHint.textContent = 'Tap one of your pieces. Dots show where it can go.'
+    } else {
+      chessHint.textContent = 'Tip: tap any piece to learn how it moves.'
+    }
+
+    chessGrid.replaceChildren(
+      ...squaresInView(look.youAreWhite).map((square, index) => {
+        const button = document.createElement('button')
+        button.type = 'button'
+        const piece = pieces.get(square)
+        const file = square.charCodeAt(0) - 97
+        const rank = Number(square[1])
+        button.className = (file + rank) % 2 === 0 ? 'sq light' : 'sq dark'
+        button.classList.toggle('selected', square === selected)
+        button.classList.toggle('target', targets.includes(square))
+        button.classList.toggle('capture', targets.includes(square) && piece !== undefined)
+        button.classList.toggle('last', chess.lastMove?.from === square || chess.lastMove?.to === square)
+        button.classList.toggle('check', square === inCheck)
+        button.setAttribute('aria-label', piece ? `${square}, ${piece}` : square)
+        const labels = [
+          index % 8 === 0 ? `<span class="coord rank">${rank}</span>` : '',
+          index >= 56 ? `<span class="coord file">${square[0]}</span>` : '',
+        ].join('')
+        button.innerHTML = `${labels}${piece ? pieceHtml(piece) : ''}`
+        button.addEventListener('click', () => chooseChessSquare(square))
+        return button
+      }),
+    )
+
+    promotion.hidden = pendingPromotion === null
+    promotionButtons.replaceChildren(
+      ...promotionChoices.map(({ piece, name }) => {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.innerHTML = `${pieceHtml(look.youAreWhite ? piece.toUpperCase() : piece)}<span>${name}</span>`
+        button.addEventListener('click', () => {
+          if (pendingPromotion) {
+            sendChessMove(pendingPromotion.from, pendingPromotion.to, piece)
+          }
+          pendingPromotion = null
+          renderChess()
+        })
+        return button
+      }),
+    )
+
+    if (chess.outcome?.ending === 'checkmate') {
+      if (chessCelebrated !== chess.fen) {
+        chessCelebrated = chess.fen
+        void celebrateWin(look.color)
+      }
+    } else {
+      chessCelebrated = ''
+    }
+  }
+
   const showWorld = (world: string | null) => {
     worldOpen = world === 'room'
-    screen.classList.remove('world-room', 'world-marks')
+    screen.classList.remove('world-room', 'world-game', 'world-tictactoe', 'world-chess')
     if (world === 'room') {
       screen.classList.add('world-room')
     }
-    if (world === 'tictactoe') {
-      screen.classList.add('world-marks')
+    if (world === 'tictactoe' || world === 'chess') {
+      screen.classList.add('world-game', `world-${world}`)
     }
-    placeFaces(world === 'tictactoe')
+    placeFaces(world === 'tictactoe' ? cards : world === 'chess' ? chessCards : null)
   }
 
-  const placeFaces = (onStage: boolean) => {
-    const leftFace = cards.left.querySelector<HTMLDivElement>('.player-face')!
-    const rightFace = cards.right.querySelector<HTMLDivElement>('.player-face')!
-    const home = onStage ? [leftFace, rightFace] : [faceDock, faceDock]
+  const placeFaces = (stage: { left: HTMLDivElement; right: HTMLDivElement } | null) => {
+    const home = stage
+      ? [stage.left.querySelector<HTMLDivElement>('.player-face')!, stage.right.querySelector<HTMLDivElement>('.player-face')!]
+      : [faceDock, faceDock]
     if (localSlot.parentElement === home[0] && portrait.parentElement === home[1]) {
       return
     }
@@ -337,6 +549,20 @@ function renderRoom(root: HTMLDivElement, id: string) {
         if (key !== boardKey) {
           boardKey = key
           renderMarks(state.board, here)
+        }
+      }
+      if (state.world === 'chess' && state.chess) {
+        const here = { A: state.players.A !== null, B: state.players.B !== null }
+        const key = JSON.stringify({ chess: state.chess, here, you })
+        if (key !== boardKey) {
+          boardKey = key
+          if (chessState?.fen !== state.chess.fen) {
+            selected = null
+            pendingPromotion = null
+          }
+          chessState = state.chess
+          chessHere = here
+          renderChess()
         }
       }
       const other = you === 'A' ? state.players.B : state.players.A
