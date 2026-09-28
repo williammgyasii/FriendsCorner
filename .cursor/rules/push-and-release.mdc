@@ -1,0 +1,42 @@
+---
+description: What "push" and "release" mean in FriendsCorner — push is PR then merge through CI; release is a tag that deploys to production
+alwaysApply: true
+---
+
+# "Push" and "release"
+
+When William says the word, that is his approval for the whole flow below. Nothing else counts as approval to push.
+
+## "Push" = open a PR and merge it through CI
+
+`backend.yml`, `frontend.yml`, and `terraform.yml` only run on pull requests into `main` that touch their paths, so a push straight to `main` skips CI. Never push to `main` directly. A PR that touches none of their paths (only `openspec/` or `.cursor/`) has no checks; that is expected.
+
+1. Commit on a branch named for the change (`add-letter-tiles`), not on `main`.
+2. Push the branch and `gh pr create --base main` with a summary and a test plan.
+3. Watch `gh pr checks <n> --watch`. If a check fails, stop, read the log, and report the root cause. Do not merge a red PR.
+4. When it's green, `gh pr merge <n> --merge --delete-branch`. Use a merge commit so split commits stay separate; never squash or rebase.
+5. Switch to `main` and `git pull --ff-only`.
+
+## "Release" = tag `main`, which deploys to production
+
+There is one environment: production. `release.yml` runs on a `v*` tag. For each area that changed since the last tag it calls that area's workflow with `deploy: true`, in order: backend (API Worker), then frontend (web Worker, which binds to the API), then Terraform. A failure stops everything after it.
+
+1. If there is unmerged work, "push" it first. Only tag a commit that is on `origin/main` and has passed CI.
+2. Pick the next version from `git tag --sort=-v:refname`. Default is a minor bump for features (`v0.1.0` → `v0.2.0`) and a patch bump for fixes. Say which one you chose.
+3. `git tag -a vX.Y.Z -m "<what ships>"`, then `git push origin vX.Y.Z`.
+4. Watch the deploy run until it ends: `gh run watch <id> --exit-status`. Report which jobs shipped and which were skipped.
+
+## Auth
+
+Git's stored credential is `wgyasi`, and that account can't push to `williammgyasii/FriendsCorner`. Use the owner's CLI token for each command only; don't switch the active account or edit git config.
+
+```bash
+export GH_TOKEN=$(gh auth token --user williammgyasii)
+git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push -u origin HEAD
+```
+
+```
+❌ "push" -> git push origin main
+✅ "push" -> branch -> PR -> CI green -> merge commit -> pull main
+✅ "release" -> (push if needed) -> tag v0.2.0 -> deploy to production -> watch it finish
+```
