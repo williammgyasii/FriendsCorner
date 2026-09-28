@@ -23,7 +23,7 @@ public sealed class Room
 
     public bool TryLaunch(string world)
     {
-        if (world is not ("room" or "tictactoe"))
+        if (world is not ("room" or "tictactoe" or "chess"))
         {
             return false;
         }
@@ -39,6 +39,41 @@ public sealed class Room
             TicTacToe ??= Board.Empty();
         }
 
+        if (world == "chess")
+        {
+            Chess ??= ChessBoard.Start();
+        }
+
+        return true;
+    }
+
+    public ChessBoard? Chess { get; private set; }
+
+    public void RestoreChess(ChessBoard board)
+    {
+        World = "chess";
+        Chess = board;
+    }
+
+    public bool TryChessMove(Seat seat, ChessMove move)
+    {
+        if (Chess is null || !Chess.TryMove(seat, move, out var updated))
+        {
+            return false;
+        }
+
+        Chess = updated;
+        return true;
+    }
+
+    public bool TryChessRematch()
+    {
+        if (Chess is null || !Chess.TryRematch(out var updated))
+        {
+            return false;
+        }
+
+        Chess = updated;
         return true;
     }
 
