@@ -1,6 +1,6 @@
 import type { Dispatch } from '@reduxjs/toolkit'
-import type { Seat } from '../chessLook.ts'
 import type { SignalPayload } from '../faceCall.ts'
+import type { RoomSeat } from '../lobbyLook.ts'
 import type { RoomMessageOut } from './index.ts'
 import { closed, joined, stateReceived, type RoomSnapshot } from './roomSlice.ts'
 
@@ -25,14 +25,14 @@ export function openRoomSocket(url: string, { dispatch, onSignal, connect = (to)
   const socket = connect(url)
 
   socket.addEventListener('message', (event) => {
-    const message = JSON.parse(String(event.data)) as { type: string; seat?: Seat; payload?: SignalPayload }
+    const message = JSON.parse(String(event.data)) as { type: string; seat?: RoomSeat; payload?: SignalPayload }
     if (message.type === 'joined' && message.seat) {
       dispatch(joined(message.seat))
     } else if (message.type === 'signal' && message.payload) {
       onSignal(message.payload)
     } else if (message.type === 'state') {
-      const { you, world, board, chess, players } = message as unknown as RoomSnapshot
-      dispatch(stateReceived({ you, world, board, chess, players }))
+      const { you, world, board, chess, players, lobby = null } = message as unknown as RoomSnapshot
+      dispatch(stateReceived({ you, world, board, chess, players, lobby }))
     }
   })
 

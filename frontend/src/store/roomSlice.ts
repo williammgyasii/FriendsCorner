@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { ChessState, Seat } from '../chessLook.ts'
+import type { LobbyState, RoomSeat } from '../lobbyLook.ts'
 
 export type Player = { x: number; y: number } | null
 
@@ -13,17 +14,18 @@ export type BoardState = {
 // The latest copy of the room the server sent. The server owns it; the
 // browser only replaces it when a new message arrives.
 export type RoomSnapshot = {
-  you: Seat
+  you: RoomSeat
   world: string | null
   board: BoardState | null
   chess: ChessState | null
-  players: { A: Player; B: Player }
+  players: { A: Player; B: Player; C?: Player; D?: Player }
+  lobby: LobbyState | null
 }
 
 export type Connection = 'connecting' | 'open' | 'full' | 'gone'
 
 type RoomState = {
-  seat: Seat | null
+  seat: RoomSeat | null
   connection: Connection
   snapshot: RoomSnapshot | null
 }
@@ -36,7 +38,7 @@ export const roomSlice = createSlice({
   name: 'room',
   initialState,
   reducers: {
-    joined(state, action: PayloadAction<Seat>) {
+    joined(state, action: PayloadAction<RoomSeat>) {
       state.seat = action.payload
       state.connection = 'open'
     },
@@ -59,6 +61,9 @@ export const roomSlice = createSlice({
       }
       if (!same(state.snapshot.chess, next.chess)) {
         state.snapshot.chess = next.chess
+      }
+      if (!same(state.snapshot.lobby, next.lobby)) {
+        state.snapshot.lobby = next.lobby
       }
     },
     closed(state, action: PayloadAction<string>) {

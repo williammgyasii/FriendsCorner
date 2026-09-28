@@ -78,6 +78,7 @@ test('a state message becomes the latest server copy', () => {
     board: null,
     chess: null,
     players: { A: { x: 1, y: 1 }, B: null },
+    lobby: null,
   })
 })
 

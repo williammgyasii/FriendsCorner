@@ -2,11 +2,14 @@ import { FaceCall } from './faceCall.ts'
 import '@fontsource-variable/fredoka'
 import confetti from 'canvas-confetti'
 import { pieceHint, squaresInView, type ChessCard, type Seat } from './chessLook.ts'
-import type { ChessView } from './chessView3d.ts'
 import { pickLayout } from './layout.ts'
+import { pieceImage } from './pieceArt.ts'
 import { describeMarks, describePlayers, type PlayerCard } from './marksLook.ts'
 import { placeFigures, wallHeight, type PlacedFigure } from './roomLook.ts'
+import { createFaces } from './faces.ts'
+import { mountLobby } from './lobby/mount.tsx'
 import { chooseChessSquare, choosePromotion } from './store/chessUiSlice.ts'
+import { setMedia } from './store/devicesSlice.ts'
 import { makeStore, sendToRoom, type RoomMessageOut, type RootState } from './store/index.ts'
 import { iceServersFor, roomApi } from './store/roomApi.ts'
 import type { BoardState, RoomSnapshot } from './store/roomSlice.ts'
@@ -19,10 +22,11 @@ import {
   selectConnection,
   selectHere,
   selectOtherHere,
+  selectPlayerSeat,
   selectSnapshot,
   selectWorld,
-  selectYou,
 } from './store/selectors.ts'
+import './index.css'
 import './style.css'
 
 const app = document.querySelector<HTMLDivElement>('#app')
@@ -58,7 +62,6 @@ function renderStart(root: HTMLDivElement) {
   })
 }
 
-const chessGlyph: Record<string, string> = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
 const promotionChoices = [
   { piece: 'q', name: 'Queen' },
   { piece: 'r', name: 'Rook' },
@@ -66,10 +69,9 @@ const promotionChoices = [
   { piece: 'n', name: 'Knight' },
 ]
 
-// U+FE0E keeps iOS from drawing the pawn as an emoji.
 function pieceHtml(piece: string) {
   const side = piece === piece.toUpperCase() ? 'white' : 'black'
-  return `<span class="piece piece-${side}" aria-hidden="true">${chessGlyph[piece.toLowerCase()]}\uFE0E</span>`
+  return `<img class="piece piece-${side}" src="${pieceImage(piece)}" alt="" draggable="false">`
 }
 
 function renderRoom(root: HTMLDivElement, id: string) {
@@ -85,32 +87,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
           <p class="face-note" id="face-note">Waiting for them</p>
         </div>
       </div>
-      <section class="lobby" id="lobby">
-        <p class="mark">Friends Corner</p>
-        <h1>Lobby</h1>
-        <p class="status" id="status">Connecting…</p>
-        <div class="games">
-          <button class="game selected" type="button" data-world="room">
-            <p class="kicker">Selected</p>
-            <h2>The Room</h2>
-            <p>A floor, a window, and the two of you.</p>
-          </button>
-          <button class="game" type="button" data-world="tictactoe">
-            <p class="kicker">Selected</p>
-            <h2>Tic-tac-toe</h2>
-            <p>Nine squares. You are X, they are O.</p>
-          </button>
-          <button class="game" type="button" data-world="chess">
-            <p class="kicker">Selected</p>
-            <h2>Chess</h2>
-            <p>The classic. Tap a piece and the board shows where it can go.</p>
-          </button>
-        </div>
-        <div class="actions">
-          <button id="launch" type="button">Start</button>
-          <button id="copy" class="quiet" type="button">Copy invite</button>
-        </div>
-      </section>
+      <section class="lobby-host" id="lobby"></section>
       <section class="world floor-world" id="floor-world">
         <canvas class="floor" id="floor" width="480" height="320"></canvas>
         <div class="pad" id="pad" aria-label="Move"></div>
@@ -138,7 +115,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
           </header>
           <div class="arena">
             <div class="board">
-              <div class="grid" id="grid"></div>
+              <div class="marks-grid" id="grid"></div>
               <svg class="strike" id="strike" viewBox="0 0 300 300" aria-hidden="true">
                 <line id="strike-line" x1="0" y1="0" x2="0" y2="0" />
               </svg>
@@ -160,6 +137,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
                 <strong class="player-label"></strong>
                 <span class="player-note"></span>
               </div>
+              <div class="tray card-tray"></div>
             </div>
             <span class="vs">VS</span>
             <div class="player card-right" id="chess-card-right">
@@ -169,16 +147,14 @@ function renderRoom(root: HTMLDivElement, id: string) {
                 <strong class="player-label"></strong>
                 <span class="player-note"></span>
               </div>
+              <div class="tray card-tray"></div>
             </div>
           </header>
-          <div class="arena">
+          <div class="arena chess-arena">
+            <div class="tray side-tray tray-left" id="chess-tray-left"></div>
+            <div class="tray side-tray tray-right" id="chess-tray-right"></div>
             <div class="board chess-board" id="chess-board">
               <div class="chess-grid" id="chess-grid"></div>
-              <p class="chess-credit">
-                Chess set: <a href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/ABeautifulGame" target="_blank" rel="noopener">A Beautiful Game</a>
-                by Moeen and Mujtaba Sayed,
-                <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
-              </p>
               <div class="promotion" id="promotion" hidden>
                 <p>Your pawn made it across! Pick what it becomes.</p>
                 <div class="promotion-choices" id="promotion-choices"></div>
@@ -189,6 +165,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
             <div class="chess-words">
               <p class="marks-status" id="chess-status"></p>
               <p class="chess-hint" id="chess-hint"></p>
+              <p class="chess-credit">Pieces by <a href="https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces" target="_blank" rel="noopener">Cburnett</a>, BSD license</p>
             </div>
             <button class="chunky" id="chess-rematch" type="button" hidden>Play again</button>
           </footer>
@@ -197,7 +174,6 @@ function renderRoom(root: HTMLDivElement, id: string) {
     </div>
   `
 
-  const status = root.querySelector<HTMLParagraphElement>('#status')!
   const canvas = root.querySelector<HTMLCanvasElement>('#floor')!
   const pad = root.querySelector<HTMLDivElement>('#pad')!
   const portrait = root.querySelector<HTMLDivElement>('#face')!
@@ -225,12 +201,14 @@ function renderRoom(root: HTMLDivElement, id: string) {
   let socket: RoomSocket | null = null
   const store = makeStore({ send: (message) => socket?.send(message) })
   const send = (message: RoomMessageOut) => store.dispatch(sendToRoom(message))
+  const faces = createFaces()
   const face = new FaceCall(
     (payload) => send({ type: 'signal', payload }),
     video,
     (tile) => {
       portrait.className = `slot portrait ${tile}`
       faceNote.textContent = faceNotes[tile]
+      faces.set({ remoteTile: tile, remote: video.srcObject instanceof MediaStream ? video.srcObject : null })
     },
     () => store.dispatch(iceServersFor(id)),
   )
@@ -238,36 +216,53 @@ function renderRoom(root: HTMLDivElement, id: string) {
     dispatch: store.dispatch,
     onSignal: (payload) => face.receive(payload),
   })
-  const cameraReady = navigator.mediaDevices
-    .getUserMedia({ video: true, audio: true })
-    .then((stream) => {
+  mountLobby(root.querySelector<HTMLElement>('#lobby')!, store, faces)
+
+  const applyToggles = (stream: MediaStream | null) => {
+    const { camera, mic } = store.getState().devices
+    stream?.getVideoTracks().forEach((track) => (track.enabled = camera))
+    stream?.getAudioTracks().forEach((track) => (track.enabled = mic))
+  }
+
+  const openCamera = async () => {
+    const { cameraId, micId } = store.getState().devices
+    const wanted = {
+      video: cameraId ? { deviceId: { ideal: cameraId } } : true,
+      audio: micId ? { deviceId: { ideal: micId } } : true,
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(wanted)
+      applyToggles(stream)
       localVideo.srcObject = stream
       void localVideo.play().catch(() => undefined)
       localNote.textContent = 'You'
+      faces.set({ local: stream })
       return stream
-    })
-    .catch(() => {
+    } catch {
       localNote.textContent = 'Camera is off'
       return null
-    })
-
-  root.querySelector('#copy')?.addEventListener('click', () => {
-    void navigator.clipboard.writeText(location.href)
-    status.textContent = 'Invite copied.'
-  })
-  root.querySelector('#launch')?.addEventListener('click', () => {
-    const selected = root.querySelector<HTMLButtonElement>('.game.selected')?.dataset.world ?? 'room'
-    if (selectConnection(store.getState()) === 'open') {
-      send({ type: 'launch', world: selected })
-      const names: Record<string, string> = { tictactoe: 'Tic-tac-toe', chess: 'Chess', room: 'The Room' }
-      status.textContent = `Opening ${names[selected] ?? 'The Room'}…`
     }
-  })
-  root.querySelectorAll<HTMLButtonElement>('.game').forEach((card) => {
-    card.addEventListener('click', () => {
-      root.querySelectorAll('.game').forEach((other) => other.classList.remove('selected'))
-      card.classList.add('selected')
-    })
+  }
+  const cameraReady = openCamera()
+
+  let devices = store.getState().devices
+  store.subscribe(() => {
+    const next = store.getState().devices
+    if (next === devices) {
+      return
+    }
+    const switched = next.cameraId !== devices.cameraId || next.micId !== devices.micId
+    devices = next
+    applyToggles(faces.get().local)
+    if (switched) {
+      const old = faces.get().local
+      void openCamera().then((stream) => {
+        if (stream) {
+          old?.getTracks().forEach((track) => track.stop())
+          void face.useStream(stream)
+        }
+      })
+    }
   })
 
   let faceStarted = false
@@ -293,7 +288,6 @@ function renderRoom(root: HTMLDivElement, id: string) {
     right: root.querySelector<HTMLDivElement>('#chess-card-right')!,
   }
   const chessStage = root.querySelector<HTMLDivElement>('#chess-stage')!
-  const chessBoard = root.querySelector<HTMLDivElement>('#chess-board')!
   const chessGrid = root.querySelector<HTMLDivElement>('#chess-grid')!
   const chessStatus = root.querySelector<HTMLParagraphElement>('#chess-status')!
   const chessHint = root.querySelector<HTMLParagraphElement>('#chess-hint')!
@@ -301,34 +295,29 @@ function renderRoom(root: HTMLDivElement, id: string) {
   const promotion = root.querySelector<HTMLDivElement>('#promotion')!
   const promotionButtons = root.querySelector<HTMLDivElement>('#promotion-choices')!
   let chessCelebrated = ''
-  let chessView: ChessView | null = null
-  let chessViewTried = false
-
-  const openChessView = () => {
-    chessViewTried = true
-    const fallBack = () => {
-      chessView?.dispose()
-      chessView = null
-      chessBoard.classList.remove('three')
-      renderChess()
-    }
-    import('./chessView3d.ts')
-      .then(({ mountChessView }) => mountChessView(chessBoard, tapSquare, fallBack))
-      .then((view) => {
-        chessView = view
-        chessBoard.classList.add('three')
-        renderChess()
-      })
-      .catch((error: unknown) => {
-        console.warn('3D chess is unavailable; using the flat board.', error)
-      })
-  }
 
   const tapSquare = (square: string) => store.dispatch(chooseChessSquare(square))
 
   chessRematch.addEventListener('click', () => send({ type: 'chess-rematch' }))
 
-  const paintChessCard = (element: HTMLDivElement, card: ChessCard) => {
+  const chessTrays = {
+    left: root.querySelector<HTMLDivElement>('#chess-tray-left')!,
+    right: root.querySelector<HTMLDivElement>('#chess-tray-right')!,
+  }
+
+  const paintTray = (tray: HTMLDivElement, card: ChessCard) => {
+    tray.style.setProperty('--seat', card.color)
+    tray.setAttribute('aria-label', card.taken.length ? `${card.label} took ${card.taken.length}` : `${card.label} took nothing yet`)
+    const taken = card.taken.join('')
+    if (tray.dataset.taken !== taken) {
+      tray.dataset.taken = taken
+      tray.innerHTML = card.taken.map(pieceHtml).join('')
+    }
+  }
+
+  const paintChessCard = (element: HTMLDivElement, card: ChessCard, sideTray: HTMLDivElement) => {
+    paintTray(element.querySelector<HTMLDivElement>('.card-tray')!, card)
+    paintTray(sideTray, card)
     element.style.setProperty('--seat', card.color)
     element.classList.toggle('active', card.active)
     element.classList.toggle('quiet', !card.active && card.note !== 'Waiting')
@@ -350,8 +339,8 @@ function renderRoom(root: HTMLDivElement, id: string) {
 
     chessStage.classList.toggle('celebrating', look.celebrate !== null)
     screen.style.setProperty('--turn', look.color)
-    paintChessCard(chessCards.left, look.left)
-    paintChessCard(chessCards.right, look.right)
+    paintChessCard(chessCards.left, look.left, chessTrays.left)
+    paintChessCard(chessCards.right, look.right, chessTrays.right)
     chessStatus.textContent = look.celebrate ?? look.status
     chessRematch.hidden = !look.canRematch
     if (look.canRematch) {
@@ -364,38 +353,29 @@ function renderRoom(root: HTMLDivElement, id: string) {
       chessHint.textContent = 'Tip: tap any piece to learn how it moves.'
     }
 
-    if (!chessViewTried) {
-      openChessView()
-    }
-
-    if (chessView) {
-      chessView.show(picture)
-      chessGrid.replaceChildren()
-    } else {
-      chessGrid.replaceChildren(
-        ...squaresInView(look.youAreWhite).map((square, index) => {
-          const button = document.createElement('button')
-          button.type = 'button'
-          const piece = pieces.get(square)
-          const file = square.charCodeAt(0) - 97
-          const rank = Number(square[1])
-          button.className = (file + rank) % 2 === 0 ? 'sq light' : 'sq dark'
-          button.classList.toggle('selected', square === selected)
-          button.classList.toggle('target', targets.includes(square))
-          button.classList.toggle('capture', targets.includes(square) && piece !== undefined)
-          button.classList.toggle('last', chess.lastMove?.from === square || chess.lastMove?.to === square)
-          button.classList.toggle('check', square === inCheck)
-          button.setAttribute('aria-label', piece ? `${square}, ${piece}` : square)
-          const labels = [
-            index % 8 === 0 ? `<span class="coord rank">${rank}</span>` : '',
-            index >= 56 ? `<span class="coord file">${square[0]}</span>` : '',
-          ].join('')
-          button.innerHTML = `${labels}${piece ? pieceHtml(piece) : ''}`
-          button.addEventListener('click', () => tapSquare(square))
-          return button
-        }),
-      )
-    }
+    chessGrid.replaceChildren(
+      ...squaresInView(look.youAreWhite).map((square, index) => {
+        const button = document.createElement('button')
+        button.type = 'button'
+        const piece = pieces.get(square)
+        const file = square.charCodeAt(0) - 97
+        const rank = Number(square[1])
+        button.className = (file + rank) % 2 === 0 ? 'sq light' : 'sq dark'
+        button.classList.toggle('selected', square === selected)
+        button.classList.toggle('target', targets.includes(square))
+        button.classList.toggle('capture', targets.includes(square) && piece !== undefined)
+        button.classList.toggle('last', chess.lastMove?.from === square || chess.lastMove?.to === square)
+        button.classList.toggle('check', square === inCheck)
+        button.setAttribute('aria-label', piece ? `${square}, ${piece}` : square)
+        const labels = [
+          index % 8 === 0 ? `<span class="coord rank">${rank}</span>` : '',
+          index >= 56 ? `<span class="coord file">${square[0]}</span>` : '',
+        ].join('')
+        button.innerHTML = `${labels}${piece ? pieceHtml(piece) : ''}`
+        button.addEventListener('click', () => tapSquare(square))
+        return button
+      }),
+    )
 
     promotion.hidden = pendingPromotion === null
     promotionButtons.replaceChildren(
@@ -451,7 +431,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
     element.querySelector('.player-note')!.textContent = card.note
   }
 
-  const renderMarks = (board: BoardState, here: { A: boolean; B: boolean }, you: Seat) => {
+  const renderMarks = (board: BoardState, here: { A: boolean; B: boolean }, you: Seat, watching: boolean) => {
     const look = describeMarks(board, you)
     const players = describePlayers(board, you, here)
     marksBoard.classList.toggle('celebrating', look.celebrate !== null)
@@ -472,7 +452,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
           button.innerHTML = markSvg(mark, fresh[index])
         }
         button.classList.toggle('won', look.winning.includes(index))
-        button.disabled = look.canRematch || mark !== null || board.next !== you
+        button.disabled = watching || look.canRematch || mark !== null || board.next !== you
         button.addEventListener('click', () => send({ type: 'place', square: index }))
         return button
       }),
@@ -504,13 +484,6 @@ function renderRoom(root: HTMLDivElement, id: string) {
     void cameraReady.then((stream) => face.start(you, stream))
   }
 
-  const connectionWords = {
-    connecting: 'Connecting…',
-    open: 'You are in the lobby. Share the invite.',
-    full: 'This room is full.',
-    gone: 'This room is gone.',
-  }
-
   // Each view repaints only when the slice of state it reads is a new object.
   let seen: RootState | null = null
   let seenBoardInputs: unknown[] = []
@@ -523,7 +496,9 @@ function renderRoom(root: HTMLDivElement, id: string) {
     seen = state
     const connection = selectConnection(state)
     if (!before || connection !== selectConnection(before)) {
-      status.textContent = connectionWords[connection]
+      if (connection === 'open') {
+        store.dispatch(setMedia({}))
+      }
       if (connection === 'full' || connection === 'gone') {
         face.stop()
       }
@@ -533,7 +508,8 @@ function renderRoom(root: HTMLDivElement, id: string) {
     if (!snapshot) {
       return
     }
-    const you = selectYou(state)
+    const player = selectPlayerSeat(state)
+    const you = player ?? 'A'
     const world = selectWorld(state)
     const here = selectHere(state)
     if (snapshot !== before?.room.snapshot) {
@@ -542,10 +518,10 @@ function renderRoom(root: HTMLDivElement, id: string) {
     }
 
     const board = selectBoard(state)
-    const boardInputs = [board, here, you]
+    const boardInputs = [board, here, player]
     if (world === 'tictactoe' && board && changed(seenBoardInputs, boardInputs)) {
       seenBoardInputs = boardInputs
-      renderMarks(board, here, you)
+      renderMarks(board, here, you, player === null)
     }
 
     const chessInputs = [selectChessPicture(state), selectChessLook(state), state.chessUi]
@@ -554,12 +530,8 @@ function renderRoom(root: HTMLDivElement, id: string) {
       renderChess()
     }
 
-    const otherHere = selectOtherHere(state)
-    if (otherHere) {
-      if (!world && (!before || !selectOtherHere(before) || selectWorld(before))) {
-        status.textContent = 'You are both here. Pick a game and start.'
-      }
-      beginFace(you)
+    if (player && selectOtherHere(state)) {
+      beginFace(player)
     } else if (faceStarted) {
       faceStarted = false
       face.otherLeft()
@@ -615,7 +587,7 @@ function draw(context: CanvasRenderingContext2D, state: RoomSnapshot) {
   context.clearRect(0, 0, 480, 320)
   paintRoom(context)
 
-  const occupied = (['A', 'B'] as const).flatMap((seat) => {
+  const occupied = (['A', 'B', 'C', 'D'] as const).flatMap((seat) => {
     const player = state.players[seat]
     return player ? [{ seat, x: player.x, y: player.y }] : []
   })

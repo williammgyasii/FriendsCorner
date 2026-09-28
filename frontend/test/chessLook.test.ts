@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import {
+  capturedBy,
   checkedKing,
   describeChess,
   needsPromotion,
@@ -136,6 +137,14 @@ test('player cards say who plays white and whose move it is', () => {
   assert.equal(look.right.note, 'Their move')
 })
 
+test('each player card holds the pieces that player took', () => {
+  const blackTookAQueen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNB1KBNR w KQkq - 0 1'
+  const look = describeChess(game({ fen: blackTookAQueen, white: 'B' }), 'A', here)
+
+  assert.deepEqual(look.left.taken, ['Q'])
+  assert.deepEqual(look.right.taken, [])
+})
+
 test('an absent player is shown as not here', () => {
   const look = describeChess(game(), 'A', { A: true, B: false })
 
@@ -148,4 +157,32 @@ test('every piece has a plain-English hint for how it moves', () => {
     assert.ok(pieceHint(piece).length > 10, piece)
   }
   assert.match(pieceHint('N'), /L/)
+})
+
+test('nobody has taken anything at the start', () => {
+  assert.deepEqual(capturedBy(start), { white: [], black: [] })
+})
+
+test('pieces white took are the black pieces missing from the board', () => {
+  const fen = 'rnbqkb1r/pppp1ppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+
+  assert.deepEqual(capturedBy(fen), { white: ['n', 'p'], black: [] })
+})
+
+test('taken pieces line up strongest first, like beside a real board', () => {
+  const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPP1PPP/1NB1KBNR w Kkq - 0 1'
+
+  assert.deepEqual(capturedBy(fen).black, ['Q', 'R', 'P'])
+})
+
+test('a pawn that became a queen was promoted, not taken', () => {
+  const fen = 'rnbqkbnr/pppppppp/8/8/8/Q7/PPPPP1PP/RNBQKBNR w KQkq - 0 1'
+
+  assert.deepEqual(capturedBy(fen), { white: [], black: [] })
+})
+
+test('a promotion does not hide a pawn that really was taken', () => {
+  const fen = 'rnbqkbnr/pppppppp/8/8/8/Q7/PPPPP2P/RNBQKBNR w KQkq - 0 1'
+
+  assert.deepEqual(capturedBy(fen).black, ['P'])
 })

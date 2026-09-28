@@ -12,6 +12,15 @@ export type ChessState = {
   legalMoves: LegalMove[]
 }
 
+export type ChessPicture = {
+  pieces: Map<string, string>
+  youAreWhite: boolean
+  selected: string | null
+  targets: string[]
+  lastMove: { from: string; to: string } | null
+  check: string | null
+}
+
 export type ChessCard = {
   seat: Seat
   color: string
@@ -19,6 +28,7 @@ export type ChessCard = {
   side: 'White' | 'Black'
   active: boolean
   note: string
+  taken: string[]
 }
 
 export type ChessLook = {
@@ -51,6 +61,22 @@ export function piecesFrom(fen: string): Map<string, string> {
     }
   })
   return pieces
+}
+
+const startingCount: Record<string, number> = { q: 1, r: 2, b: 2, n: 2, p: 8 }
+
+function missing(onBoard: Map<string, string>, upper: boolean): string[] {
+  const count = (type: string) => [...onBoard.values()].filter((piece) => piece === (upper ? type.toUpperCase() : type)).length
+  const officers = ['q', 'r', 'b', 'n']
+  const promoted = officers.reduce((sum, type) => sum + Math.max(0, count(type) - startingCount[type]), 0)
+  const gone = (type: string) =>
+    type === 'p' ? Math.max(0, startingCount.p - count('p') - promoted) : Math.max(0, startingCount[type] - count(type))
+  return [...officers, 'p'].flatMap((type) => Array<string>(gone(type)).fill(upper ? type.toUpperCase() : type))
+}
+
+export function capturedBy(fen: string): { white: string[]; black: string[] } {
+  const onBoard = piecesFrom(fen)
+  return { white: missing(onBoard, false), black: missing(onBoard, true) }
 }
 
 export function squaresInView(youAreWhite: boolean): string[] {
@@ -90,6 +116,7 @@ export function describeChess(chess: ChessState, you: Seat, here: { A: boolean; 
   const other: Seat = you === 'A' ? 'B' : 'A'
   const youAreWhite = chess.white === you
   const bothHere = here.A && here.B
+  const captured = capturedBy(chess.fen)
 
   const card = (seat: Seat): ChessCard => {
     const base = {
@@ -97,6 +124,7 @@ export function describeChess(chess: ChessState, you: Seat, here: { A: boolean; 
       color: seatColor[seat],
       label: seat === you ? ('You' as const) : ('Them' as const),
       side: seat === chess.white ? ('White' as const) : ('Black' as const),
+      taken: seat === chess.white ? captured.white : captured.black,
     }
     if (!here[seat]) {
       return { ...base, active: false, note: 'Not here' }

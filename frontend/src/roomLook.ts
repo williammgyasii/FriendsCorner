@@ -9,9 +9,11 @@ const minSeparation = 24
 const bodyColors = {
   A: '#1c1915',
   B: '#8a5a44',
+  C: '#b7791f',
+  D: '#2f7d5b',
 } as const
 
-export type SeatName = 'A' | 'B'
+export type SeatName = 'A' | 'B' | 'C' | 'D'
 
 export type FigurePart = {
   kind: 'head' | 'body'
@@ -39,16 +41,19 @@ export function placeFigures(seats: SeatPoint[]): PlacedFigure[] {
     y: floorHeight - seat.y,
   }))
 
-  const seatA = screen.find((seat) => seat.seat === 'A')
-  const seatB = screen.find((seat) => seat.seat === 'B')
-  if (seatA && seatB) {
-    separate(seatA, seatB)
+  // Pushing one pair apart can crowd another, so settle over a few passes.
+  for (let pass = 0; pass < 24; pass += 1) {
+    for (const [index, one] of screen.entries()) {
+      for (const [offset, other] of screen.slice(index + 1).entries()) {
+        separate(one, other, (index * screen.length + offset) * 2.4)
+      }
+    }
   }
 
   return screen.map((point) => toFigure(point.seat, point.x, point.y))
 }
 
-function separate(seatA: { x: number; y: number }, seatB: { x: number; y: number }) {
+function separate(seatA: { x: number; y: number }, seatB: { x: number; y: number }, fallbackAngle: number) {
   let dx = seatB.x - seatA.x
   let dy = seatB.y - seatA.y
   const distance = Math.hypot(dx, dy)
@@ -57,8 +62,8 @@ function separate(seatA: { x: number; y: number }, seatB: { x: number; y: number
   }
 
   if (distance === 0) {
-    dx = 1
-    dy = 0
+    dx = Math.cos(fallbackAngle)
+    dy = Math.sin(fallbackAngle)
   } else {
     dx /= distance
     dy /= distance

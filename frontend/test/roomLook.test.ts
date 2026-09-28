@@ -48,3 +48,17 @@ test('a figure on the corner stays inside the floor', () => {
   assert.ok(figure.width > 0)
   assert.ok(figure.height > 0)
 })
+
+test('four players standing on one spot are all pushed apart', () => {
+  const figures = placeFigures(
+    (['A', 'B', 'C', 'D'] as const).map((seat) => ({ seat, x: 240, y: 160 })),
+  )
+
+  assert.equal(figures.length, 4)
+  for (const [index, one] of figures.entries()) {
+    for (const other of figures.slice(index + 1)) {
+      assert.ok(Math.hypot(one.centerX - other.centerX, one.centerY - other.centerY) >= 23.5, `${one.seat} and ${other.seat} overlap`)
+    }
+  }
+  assert.equal(new Set(figures.map((figure) => figure.bodyColor)).size, 4)
+})

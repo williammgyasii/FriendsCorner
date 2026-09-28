@@ -49,7 +49,9 @@ p {
   margin: 0;
 }
 
-h1 {
+/* :where() keeps these element rules at their old specificity while leaving
+   the React screens (inside .tw) to Tailwind. */
+h1:where(:not(.tw *)) {
   font-size: 56px;
   font-weight: 500;
   letter-spacing: -0.03em;
@@ -62,7 +64,7 @@ h1 {
   color: #5c5348;
 }
 
-button {
+button:where(:not(.tw *)) {
   margin-top: 28px;
   border: 0;
   border-radius: 999px;
@@ -396,7 +398,7 @@ button.quiet {
     box-shadow 0.35s ease;
 }
 
-.grid {
+.marks-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
@@ -405,7 +407,7 @@ button.quiet {
   height: 100%;
 }
 
-.grid button {
+.marks-grid button {
   display: grid;
   place-items: center;
   width: 100%;
@@ -422,7 +424,7 @@ button.quiet {
 }
 
 @media (hover: hover) {
-  .grid button:not(:disabled):hover {
+  .marks-grid button:not(:disabled):hover {
     background: color-mix(in srgb, var(--turn) 14%, #fff);
     transform: translateY(-2px);
   }
@@ -437,21 +439,21 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-.grid button:not(:disabled):active {
+.marks-grid button:not(:disabled):active {
   transform: translateY(2px);
 }
 
-.grid button svg {
+.marks-grid button svg {
   width: 100%;
   height: 100%;
 }
 
-.grid button.won {
+.marks-grid button.won {
   background: color-mix(in srgb, var(--turn) 20%, #fff);
   animation: celebrate 0.7s ease-in-out 3;
 }
 
-.grid button:disabled {
+.marks-grid button:disabled {
   cursor: default;
 }
 
@@ -562,7 +564,7 @@ button {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: 18px;
   container-type: size;
 }
 
@@ -582,15 +584,27 @@ button {
 }
 
 .sq.light {
-  background: #f3ead8;
+  background: #e6eeff;
 }
 
 .sq.dark {
-  background: color-mix(in srgb, var(--turn) 18%, #b98e6a);
+  background: #7d9de3;
 }
 
-.sq.last {
-  background-image: linear-gradient(rgba(255, 210, 63, 0.45), rgba(255, 210, 63, 0.45));
+.sq.light .coord {
+  color: #3f63bf;
+}
+
+.sq.dark .coord {
+  color: #f2f6ff;
+}
+
+.sq.light.last {
+  background-color: #fbeaa6;
+}
+
+.sq.dark.last {
+  background-color: #e6c95f;
 }
 
 .sq.selected {
@@ -620,27 +634,14 @@ button {
 .piece {
   position: relative;
   z-index: 1;
-  font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols 2", system-ui, sans-serif;
-  font-size: 10.5cqmin;
-  line-height: 1;
+  display: block;
+  width: 1em;
+  height: 1em;
+  font-size: 11.5cqmin;
+  filter: drop-shadow(0 0.04em 0.03em rgba(28, 25, 21, 0.3));
   pointer-events: none;
   user-select: none;
-}
-
-.piece-white {
-  color: #fffdf8;
-  text-shadow:
-    0 0 1px #1c1915,
-    1px 1px 0 #1c1915,
-    -1px -1px 0 #1c1915,
-    1px -1px 0 #1c1915,
-    -1px 1px 0 #1c1915,
-    0 3px 4px rgba(28, 25, 21, 0.35);
-}
-
-.piece-black {
-  color: #1c1915;
-  text-shadow: 0 3px 4px rgba(28, 25, 21, 0.3);
+  -webkit-user-drag: none;
 }
 
 .sq.selected .piece {
@@ -668,11 +669,9 @@ button {
 }
 
 .player-mark .piece {
-  display: grid;
-  place-items: center;
   width: 100%;
   height: 100%;
-  font-size: clamp(28px, 5dvh, 44px);
+  object-fit: contain;
 }
 
 .promotion {
@@ -828,7 +827,7 @@ button {
   border-radius: 26px;
 }
 
-.screen[data-layout="portrait"] .grid button {
+.screen[data-layout="portrait"] .marks-grid button {
   border-radius: 16px;
 }
 
@@ -911,11 +910,11 @@ button {
     0 18px 40px color-mix(in srgb, var(--turn) 22%, transparent);
 }
 
-.screen[data-layout="sideways"] .grid {
+.screen[data-layout="sideways"] .marks-grid {
   gap: 6px;
 }
 
-.screen[data-layout="sideways"] .grid button {
+.screen[data-layout="sideways"] .marks-grid button {
   border-radius: 12px;
 }
 
@@ -1003,7 +1002,7 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .player.active,
-  .grid button.won,
+  .marks-grid button.won,
   .mark-x.drawn path,
   .mark-o.drawn circle,
   .strike.shown line,
@@ -1036,51 +1035,97 @@ button {
   }
 }
 
-.chess-credit {
-  display: none;
-}
-
-.screen .chess-board.three {
-  width: 100%;
-  height: 100%;
-  aspect-ratio: auto;
-  padding: 0;
+.screen[data-layout] .chess-board {
+  padding: clamp(8px, 1.6cqmin, 14px);
   border: 0;
-  border-radius: 0;
-  background: radial-gradient(
-    ellipse 60% 45% at 50% 58%,
-    color-mix(in srgb, var(--turn) 22%, transparent),
-    transparent 70%
-  );
-  box-shadow: none;
+  border-radius: 28px;
+  background: #fff;
+  box-shadow:
+    0 2px 6px rgba(28, 25, 21, 0.06),
+    0 24px 60px color-mix(in srgb, var(--turn) 22%, transparent);
 }
 
-.chess-board.three .chess-grid {
-  display: none;
-}
-
-.chess-canvas {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.chess-board.three .chess-credit {
-  position: absolute;
-  right: 8px;
-  bottom: 4px;
-  z-index: 2;
-  display: block;
-  margin: 0;
-  font-size: 10px;
-  color: #8a7f72;
+.chess-credit {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #9a8f82;
 }
 
 .chess-credit a {
   color: inherit;
+}
+
+.tray:empty {
+  visibility: hidden;
+}
+
+.tray .piece {
+  font-size: inherit;
+}
+
+.card-tray {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  min-height: 22px;
+  font-size: 20px;
+}
+
+.card-tray .piece + .piece {
+  margin-left: -3px;
+}
+
+.screen[data-layout="desktop"] .card-tray,
+.screen:not([data-layout="desktop"]) .side-tray {
+  display: none;
+}
+
+.screen[data-layout="desktop"] .chess-arena {
+  --tray: clamp(64px, 7vw, 96px);
+  --tray-gap: clamp(12px, 2vw, 28px);
+  grid-template-columns: var(--tray) auto var(--tray);
+  grid-template-areas: "left board right";
+  justify-content: center;
+  column-gap: var(--tray-gap);
+}
+
+.screen[data-layout="desktop"] .chess-board {
+  grid-area: board;
+  width: min(100cqw - 2 * (var(--tray) + var(--tray-gap)), 100cqh, 620px);
+}
+
+.side-tray {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  justify-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--seat) 8%, #fff);
+  box-shadow: 0 2px 8px rgba(28, 25, 21, 0.06);
+  font-size: calc(var(--tray) * 0.36);
+  line-height: 1;
+}
+
+.tray-left {
+  grid-area: left;
+  align-self: end;
+}
+
+.tray-right {
+  grid-area: right;
+  align-self: start;
+}
+
+.tray .piece {
+  animation: rise 0.35s ease;
+}
+
+/* The React lobby shows everyone's face in their player slot. */
+.screen:not(.world-room):not(.world-game) .face-dock {
+  display: none;
+}
+
+.screen:is(.world-room, .world-game) .lobby-host {
+  display: none;
 }

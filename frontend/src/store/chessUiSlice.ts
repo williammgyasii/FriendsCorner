@@ -2,7 +2,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import { tapMeaning, type Tap } from '../chessTap.ts'
 import type { AppThunk } from './index.ts'
 import { stateReceived } from './roomSlice.ts'
-import { selectHere } from './selectors.ts'
+import { selectHere, selectPlayerSeat } from './selectors.ts'
 
 type ChessUiState = {
   selected: string | null
@@ -47,12 +47,13 @@ export const chooseChessSquare =
   (square: string): AppThunk =>
   (dispatch, getState, { send }) => {
     const state = getState()
-    const snapshot = state.room.snapshot
-    if (!snapshot?.chess) {
+    const chess = state.room.snapshot?.chess
+    const seat = selectPlayerSeat(state)
+    if (!chess || !seat) {
       return
     }
 
-    const tap = tapMeaning(snapshot.chess, snapshot.you, selectHere(state), state.chessUi.selected, square)
+    const tap = tapMeaning(chess, seat, selectHere(state), state.chessUi.selected, square)
     if (tap.kind === 'move') {
       send({ type: 'chess-move', from: tap.from, to: tap.to })
     }

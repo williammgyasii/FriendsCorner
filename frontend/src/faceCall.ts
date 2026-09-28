@@ -116,6 +116,20 @@ export class FaceCall {
     }
   }
 
+  // A new camera or mic mid-call: swap the tracks without renegotiating.
+  async useStream(stream: MediaStream) {
+    this.local = stream
+    if (!this.pc) {
+      return
+    }
+    for (const sender of this.pc.getSenders()) {
+      const track = stream.getTracks().find((candidate) => candidate.kind === sender.track?.kind)
+      if (track) {
+        await sender.replaceTrack(track)
+      }
+    }
+  }
+
   receive(payload: SignalPayload) {
     if (!this.ready || !this.pc) {
       this.queue.push(payload)

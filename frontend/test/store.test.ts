@@ -28,6 +28,7 @@ const snapshot = (overrides: Partial<RoomSnapshot> = {}): RoomSnapshot => ({
   board: null,
   chess: chess(),
   players: { A: { x: 1, y: 1 }, B: { x: 2, y: 2 } },
+  lobby: null,
   ...overrides,
 })
 
