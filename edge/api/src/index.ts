@@ -14,7 +14,7 @@ const roomId = /^[0-9a-f]{32}$/
 export class RoomApi extends Container<Env> {
   defaultPort = 8080
   sleepAfter = '30m'
-  envVars = { DATABASE_URL: this.env.DATABASE_URL }
+  envVars = { ConnectionStrings__FriendsCorner: this.env.DATABASE_URL }
 }
 
 // No public hostname: only Workers holding a service binding can reach this.

@@ -1,6 +1,6 @@
 **/bin/
 **/obj/
 **/.vs/
-FriendsCorner.Room.Tests/
+FriendsCorner.Tests/
 Dockerfile
 .dockerignore

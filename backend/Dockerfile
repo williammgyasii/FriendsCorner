@@ -5,15 +5,15 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG TARGETARCH
 WORKDIR /src
 
-COPY FriendsCorner.Room/FriendsCorner.Room.csproj FriendsCorner.Room/
-COPY FriendsCorner.Storage/FriendsCorner.Storage.csproj FriendsCorner.Storage/
-COPY FriendsCorner.Server/FriendsCorner.Server.csproj FriendsCorner.Server/
-RUN dotnet restore FriendsCorner.Server/FriendsCorner.Server.csproj -a $TARGETARCH
+COPY FriendsCorner.Core/FriendsCorner.Core.csproj FriendsCorner.Core/
+COPY FriendsCorner.Infrastructure/FriendsCorner.Infrastructure.csproj FriendsCorner.Infrastructure/
+COPY FriendsCorner.Api/FriendsCorner.Api.csproj FriendsCorner.Api/
+RUN dotnet restore FriendsCorner.Api/FriendsCorner.Api.csproj -a $TARGETARCH
 
-COPY FriendsCorner.Room/ FriendsCorner.Room/
-COPY FriendsCorner.Storage/ FriendsCorner.Storage/
-COPY FriendsCorner.Server/ FriendsCorner.Server/
-RUN dotnet publish FriendsCorner.Server/FriendsCorner.Server.csproj -c Release -a $TARGETARCH --no-restore -o /app
+COPY FriendsCorner.Core/ FriendsCorner.Core/
+COPY FriendsCorner.Infrastructure/ FriendsCorner.Infrastructure/
+COPY FriendsCorner.Api/ FriendsCorner.Api/
+RUN dotnet publish FriendsCorner.Api/FriendsCorner.Api.csproj -c Release -a $TARGETARCH --no-restore -o /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
@@ -22,4 +22,4 @@ ENV ASPNETCORE_URLS=http://0.0.0.0:8080 \
     ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 8080
 USER $APP_UID
-ENTRYPOINT ["dotnet", "FriendsCorner.Server.dll"]
+ENTRYPOINT ["dotnet", "FriendsCorner.Api.dll"]

@@ -1,6 +1,6 @@
 <Solution>
-  <Project Path="FriendsCorner.Room.Tests/FriendsCorner.Room.Tests.csproj" />
-  <Project Path="FriendsCorner.Room/FriendsCorner.Room.csproj" />
-  <Project Path="FriendsCorner.Server/FriendsCorner.Server.csproj" />
-  <Project Path="FriendsCorner.Storage/FriendsCorner.Storage.csproj" />
+  <Project Path="FriendsCorner.Api/FriendsCorner.Api.csproj" />
+  <Project Path="FriendsCorner.Core/FriendsCorner.Core.csproj" />
+  <Project Path="FriendsCorner.Infrastructure/FriendsCorner.Infrastructure.csproj" />
+  <Project Path="FriendsCorner.Tests/FriendsCorner.Tests.csproj" />
 </Solution>

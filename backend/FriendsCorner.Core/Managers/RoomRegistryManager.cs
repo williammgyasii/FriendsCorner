@@ -1,0 +1,98 @@
+using FriendsCorner.Core.Accessors;
+using FriendsCorner.Core.Engines;
+
+namespace FriendsCorner.Core.Managers;
+
+public interface IRoomRegistryManager
+{
+    string Create();
+
+    bool IsLive(string id);
+
+    Task<IRoomManager?> Find(string id);
+}
+
+// Opens rooms: a new one, a live one, or a saved game brought back to life.
+public sealed class RoomRegistryManager : IRoomRegistryManager
+{
+    private readonly Dictionary<string, IRoomManager> _rooms = new();
+    private readonly Lock _gate = new();
+    private readonly IBoardTableAccessor _boardTable;
+    private readonly IChessTableAccessor _chessTable;
+    private readonly IRoomManagerFactory _factory;
+
+    public RoomRegistryManager(IBoardTableAccessor boardTable, IChessTableAccessor chessTable, IRoomManagerFactory factory)
+    {
+        _boardTable = boardTable;
+        _chessTable = chessTable;
+        _factory = factory;
+    }
+
+    public string Create()
+    {
+        var id = Guid.NewGuid().ToString("N");
+        lock (_gate)
+        {
+            _rooms[id] = NewRoom(id);
+        }
+
+        return id;
+    }
+
+    public bool IsLive(string id)
+    {
+        lock (_gate)
+        {
+            return _rooms.ContainsKey(id);
+        }
+    }
+
+    public async Task<IRoomManager?> Find(string id)
+    {
+        lock (_gate)
+        {
+            if (_rooms.TryGetValue(id, out var live))
+            {
+                return live;
+            }
+        }
+
+        var board = await _boardTable.Load(id);
+        var chess = board is null ? await _chessTable.Load(id) : null;
+        if (board is null && chess is null)
+        {
+            return null;
+        }
+
+        lock (_gate)
+        {
+            if (_rooms.TryGetValue(id, out var live))
+            {
+                return live;
+            }
+
+            var room = NewRoom(id);
+            if (board is not null)
+            {
+                room.RestoreTicTacToe(board);
+            }
+            else
+            {
+                room.RestoreChess(chess!);
+            }
+
+            _rooms[id] = room;
+            return room;
+        }
+    }
+
+    private IRoomManager NewRoom(string id) => _factory.Create(id, () => Close(id));
+
+    private void Close(string id)
+    {
+        lock (_gate)
+        {
+            _rooms.Remove(id);
+        }
+    }
+}

@@ -4,11 +4,11 @@ context: |
   Friends Corner is a private room for two people in a long-distance relationship.
   The first slice is two characters moving in one room. One person starts and shares a link. A third person is refused.
   Monorepo. Backend is .NET 10 and ASP.NET Core's WebSocket, not SignalR.
-  Projects: FriendsCorner.Room (engine), FriendsCorner.Server (session and socket), FriendsCorner.Room.Tests (xUnit).
-  The room type is FriendsCorner.Room. Tests use the namespace FriendsCorner.Tests.
+  Projects: FriendsCorner.Core (engines, managers, accessor interfaces), FriendsCorner.Infrastructure (Postgres, sockets, JSON, timers), FriendsCorner.Api (MVC controllers, Program), FriendsCorner.Tests (xUnit, folders per layer).
+  The room engine is FriendsCorner.Core.Engines.RoomEngine. Tests use the namespace FriendsCorner.Tests.
   Frontend is Vite and TypeScript: a canvas, keyboard, and a thumb control, using the browser WebSocket.
   In development, Vite proxies the socket to Kestrel.
-  Architecture is volatility decomposition and Clean Architecture. The engine has no sockets, web framework, or database. The session owns the clock and the sockets and calls Room.Tick.
+  Architecture is volatility decomposition and Clean Architecture. The engine has no sockets, web framework, or database. RoomManager owns the clock and the sockets and calls RoomEngine.Advance.
   Movement: seats A and B start at (240, 160), speed is 160 pixels per second, the floor is 480 by 320, direction components are from -1 to 1, and Tick takes elapsed seconds.
   Tests come before the behavior they name. One small chunk at a time. Do not commit or push unless asked.
 
