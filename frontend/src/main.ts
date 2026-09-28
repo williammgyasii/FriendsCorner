@@ -8,6 +8,8 @@ import { describeMarks, describePlayers, type PlayerCard } from './marksLook.ts'
 import { placeFigures, wallHeight, type PlacedFigure } from './roomLook.ts'
 import { createFaces } from './faces.ts'
 import { mountLobby } from './lobby/mount.tsx'
+import { mountTiles } from './tiles/mount.tsx'
+import { faceHosts } from './faceHosts.ts'
 import { chooseChessSquare, choosePromotion } from './store/chessUiSlice.ts'
 import { setMedia } from './store/devicesSlice.ts'
 import { makeStore, sendToRoom, type RoomMessageOut, type RootState } from './store/index.ts'
@@ -171,6 +173,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
           </footer>
         </div>
       </section>
+      <section class="world tiles-world" id="tiles-world"></section>
     </div>
   `
 
@@ -217,6 +220,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
     onSignal: (payload) => face.receive(payload),
   })
   mountLobby(root.querySelector<HTMLElement>('#lobby')!, store, faces)
+  mountTiles(root.querySelector<HTMLElement>('#tiles-world')!, store)
 
   const applyToggles = (stream: MediaStream | null) => {
     const { camera, mic } = store.getState().devices
@@ -399,20 +403,20 @@ function renderRoom(root: HTMLDivElement, id: string) {
   }
 
   const showWorld = (world: string | null) => {
-    screen.classList.remove('world-room', 'world-game', 'world-tictactoe', 'world-chess')
+    screen.classList.remove('world-room', 'world-game', 'world-tictactoe', 'world-chess', 'world-tiles')
     if (world === 'room') {
       screen.classList.add('world-room')
     }
-    if (world === 'tictactoe' || world === 'chess') {
+    if (world === 'tictactoe' || world === 'chess' || world === 'tiles') {
       screen.classList.add('world-game', `world-${world}`)
     }
-    placeFaces(world === 'tictactoe' ? cards : world === 'chess' ? chessCards : null)
+    placeFaces(world)
   }
 
-  const placeFaces = (stage: { left: HTMLDivElement; right: HTMLDivElement } | null) => {
-    const home = stage
-      ? [stage.left.querySelector<HTMLDivElement>('.player-face')!, stage.right.querySelector<HTMLDivElement>('.player-face')!]
-      : [faceDock, faceDock]
+  // React may draw a world's badges after showWorld, so this runs on every
+  // render and returns early once the videos are in place.
+  const placeFaces = (world: string | null) => {
+    const home = faceHosts(world, root) ?? [faceDock, faceDock]
     if (localSlot.parentElement === home[0] && portrait.parentElement === home[1]) {
       return
     }
@@ -516,6 +520,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
       draw(context, snapshot)
       showWorld(world)
     }
+    placeFaces(world)
 
     const board = selectBoard(state)
     const boardInputs = [board, here, player]

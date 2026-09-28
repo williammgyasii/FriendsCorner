@@ -8,6 +8,7 @@ const art: Record<string, { glyph: string; from: string; to: string }> = {
   room: { glyph: '🛋️', from: '#ffe8c7', to: '#ffc98a' },
   tictactoe: { glyph: '✕ ○', from: '#dbe6ff', to: '#9db8ff' },
   chess: { glyph: '♞', from: '#e9e4dc', to: '#b9ad9b' },
+  tiles: { glyph: 'A B C', from: '#fdeec4', to: '#f2c86b' },
 }
 
 export function GameGrid({ view }: { view: LobbyView }) {
@@ -16,7 +17,7 @@ export function GameGrid({ view }: { view: LobbyView }) {
   return (
     <section aria-label="Games" className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold">{view.canPick ? 'Pick a game' : 'Games'}</h2>
-      <div className="grid grid-cols-3 gap-3 sm:max-w-xl">
+      <div className="grid grid-cols-2 gap-3 sm:max-w-2xl sm:grid-cols-4">
         {gameCards.map((game, index) => {
           const picked = view.pick?.id === game.id
           const look = art[game.id]

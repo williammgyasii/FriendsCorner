@@ -2,6 +2,7 @@ import { createSelector } from '@reduxjs/toolkit'
 import { checkedKing, describeChess, piecesFrom, targetsFrom, type Seat } from '../chessLook.ts'
 import type { ChessPicture } from '../chessLook.ts'
 import { describeLobby } from '../lobbyLook.ts'
+import { describeTiles } from '../tilesLook.ts'
 import type { RootState } from './index.ts'
 
 export const selectSnapshot = (state: RootState) => state.room.snapshot
@@ -33,6 +34,12 @@ export const selectOtherHere = (state: RootState) => {
 
 export const selectLobbyView = createSelector([selectLobby, selectYou], (lobby, you) =>
   lobby ? describeLobby(lobby, you) : null,
+)
+
+export const selectTiles = (state: RootState) => state.room.snapshot?.tiles ?? null
+
+export const selectTilesView = createSelector([selectTiles, selectYou, (state: RootState) => state.tilesUi], (tiles, you, ui) =>
+  tiles ? describeTiles(tiles, you, ui) : null,
 )
 
 export const selectChessLook = createSelector([selectChess, selectPlayerSeat, selectHere], (chess, seat, here) => {

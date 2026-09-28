@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import { makeStore } from '../src/store/index.ts'
 import { openRoomSocket, type SocketLike } from '../src/store/roomSocket.ts'
+import { tapRackTile, tapSquare } from '../src/store/tilesUiSlice.ts'
+import { tiles } from './tilesFixture.ts'
 
 class FakeSocket implements SocketLike {
   readyState = 0
@@ -79,7 +81,29 @@ test('a state message becomes the latest server copy', () => {
     chess: null,
     players: { A: { x: 1, y: 1 }, B: null },
     lobby: null,
+    tiles: null,
   })
+})
+
+test('a state message keeps this seat\'s Letter Tiles section', () => {
+  const { store, socket } = setup()
+  const section = tiles()
+
+  socket.receive({ type: 'state', you: 'A', world: 'tiles', board: null, chess: null, players: { A: null, B: null }, tiles: section })
+
+  assert.deepEqual(store.getState().room.snapshot?.tiles, section)
+})
+
+test('a preview answer reaches the page state', () => {
+  const { store, socket } = setup()
+  socket.receive({ type: 'state', you: 'A', world: 'tiles', board: null, chess: null, players: { A: null, B: null }, tiles: tiles() })
+  store.dispatch(tapRackTile(0))
+  store.dispatch(tapSquare(111))
+  const answer = { tiles: [{ square: 111, letter: 'C', blank: false }], refusal: { reason: 'first-needs-two-tiles', words: [] } }
+
+  socket.receive({ type: 'tiles-preview', ...answer })
+
+  assert.deepEqual(store.getState().tilesUi.preview, answer)
 })
 
 test('face-call signals go straight to the call and stay out of the store', () => {

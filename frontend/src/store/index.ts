@@ -4,6 +4,7 @@ import { chessUiSlice } from './chessUiSlice.ts'
 import { devicesSlice, loadDevices, saveDevices, type DeviceStorage } from './devicesSlice.ts'
 import { roomApi } from './roomApi.ts'
 import { roomSlice } from './roomSlice.ts'
+import { tilesUiSlice } from './tilesUiSlice.ts'
 
 export type RoomMessageOut =
   | { type: 'pick'; game: string }
@@ -16,6 +17,11 @@ export type RoomMessageOut =
   | { type: 'rematch' }
   | { type: 'chess-move'; from: string; to: string; promotion?: string }
   | { type: 'chess-rematch' }
+  | { type: 'tiles-play'; tiles: { square: number; letter: string; blank?: true }[] }
+  | { type: 'tiles-preview'; tiles: { square: number; letter: string; blank?: true }[] }
+  | { type: 'tiles-exchange'; letters: string }
+  | { type: 'tiles-pass' }
+  | { type: 'tiles-rematch' }
   | { type: 'signal'; payload: SignalPayload }
 
 // The one way out to the room. The socket code provides it; tests pass a fake.
@@ -30,6 +36,7 @@ export function makeStore(outbox: Outbox, { storage = browserStorage() }: StoreO
     reducer: {
       room: roomSlice.reducer,
       chessUi: chessUiSlice.reducer,
+      tilesUi: tilesUiSlice.reducer,
       devices: devicesSlice.reducer,
       [roomApi.reducerPath]: roomApi.reducer,
     },

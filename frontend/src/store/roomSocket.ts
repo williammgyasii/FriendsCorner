@@ -2,7 +2,9 @@ import type { Dispatch } from '@reduxjs/toolkit'
 import type { SignalPayload } from '../faceCall.ts'
 import type { RoomSeat } from '../lobbyLook.ts'
 import type { RoomMessageOut } from './index.ts'
+import type { TilesPreview } from '../tilesLook.ts'
 import { closed, joined, stateReceived, type RoomSnapshot } from './roomSlice.ts'
+import { previewReceived } from './tilesUiSlice.ts'
 
 export type SocketLike = {
   readonly readyState: number
@@ -30,9 +32,12 @@ export function openRoomSocket(url: string, { dispatch, onSignal, connect = (to)
       dispatch(joined(message.seat))
     } else if (message.type === 'signal' && message.payload) {
       onSignal(message.payload)
+    } else if (message.type === 'tiles-preview') {
+      const { type: _type, ...answer } = message as unknown as TilesPreview & { type: string }
+      dispatch(previewReceived(answer))
     } else if (message.type === 'state') {
-      const { you, world, board, chess, players, lobby = null } = message as unknown as RoomSnapshot
-      dispatch(stateReceived({ you, world, board, chess, players, lobby }))
+      const { you, world, board, chess, players, lobby = null, tiles = null } = message as unknown as RoomSnapshot
+      dispatch(stateReceived({ you, world, board, chess, players, lobby, tiles }))
     }
   })
 
