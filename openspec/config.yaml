@@ -10,6 +10,9 @@ context: |
   In development, Vite proxies the socket to Kestrel.
   Architecture is volatility decomposition and Clean Architecture. The engine has no sockets, web framework, or database. RoomManager owns the clock and the sockets and calls RoomEngine.Advance.
   Movement: seats A and B start at (240, 160), speed is 160 pixels per second, the floor is 480 by 320, direction components are from -1 to 1, and Tick takes elapsed seconds.
+  Games plug in through IGameEngine (Id, TryPlay(Seat, GameMove), TryRematch) in Core/Engines/Games. GameCatalog starts a game by id; RoomEngine holds one IGameEngine and never names a specific game. Games: tictactoe, chess, tiles.
+  Letter Tiles (id tiles, 2 to 4 players) lives in Core/Engines/LetterTiles as an immutable LetterTilesState with an injected Random. Words come from IWordListAccessor, backed by the embedded ENABLE list. Each seat's state message carries only its own rack; others are counts. Saved in the letter_tiles table as jsonb.
+  Persistence is EF Core 10 with migrations applied at startup. Secrets live in .NET user secrets, never in the repo.
   Tests come before the behavior they name. One small chunk at a time. Do not commit or push unless asked.
 
 rules:

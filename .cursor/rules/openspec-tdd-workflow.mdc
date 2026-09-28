@@ -1,0 +1,42 @@
+---
+description: Every feature or behavior change goes OpenSpec explore -> propose -> TDD apply, in that order
+alwaysApply: true
+---
+
+# Explore, then specify, then test, then write
+
+No feature, game, or behavior change starts with code. Follow these gates in order and stop at each one for William.
+
+## 1. Explore (`openspec-explore` skill)
+
+- Run `openspec list --json` and `openspec list --specs`. Check for an active change before starting a new one.
+- Read the real code the change touches. Map it with a diagram.
+- Surface the design forks (options + trade-offs + one recommendation). Record decisions in the conversation.
+- Read-only. No code, no artifacts until William confirms the scope.
+
+## 2. Propose (`openspec-propose` skill)
+
+- `openspec new change "<kebab-name>"`, then proposal, specs, design, tasks.
+- Write `tasks.md` as test-first pairs: every behavior task has a "write failing test(s)" task before its "make it pass" task.
+- `openspec validate "<name>"`. Stop and present. Proposing never implements.
+
+## 3. Apply with TDD (`openspec-apply-change` skill)
+
+For each task pair:
+
+1. **Red**: write the failing test(s), run them, show the failure. Stop for review.
+2. **Green**: after approval, write the minimal code to pass. Run the whole suite.
+3. **Refactor** with the suite green. Then tick the task `- [x]`.
+
+Refactors of existing code use parallel change (expand, migrate, contract) so the existing tests stay green at every step.
+
+## 4. Finish
+
+- Walk William through the code so he can explain it back.
+- `openspec archive` only when all tasks are done.
+- Never commit or push without his explicit say-so.
+
+```
+❌ "Add Letter Tiles" -> writes TileBag.cs
+✅ "Add Letter Tiles" -> explore -> change add-letter-tiles -> failing TileBag tests -> review -> TileBag.cs
+```
