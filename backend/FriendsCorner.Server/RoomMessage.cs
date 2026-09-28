@@ -6,6 +6,8 @@ namespace FriendsCorner.Server;
 public readonly record struct Applied(string? Forward, bool OpenedWorld)
 {
     public bool ChangedBoard { get; init; }
+
+    public bool ChangedChess { get; init; }
 }
 
 public static class RoomMessage
@@ -44,6 +46,23 @@ public static class RoomMessage
                 return new Applied(null, opened)
                 {
                     ChangedBoard = opened && world == "tictactoe",
+                    ChangedChess = opened && world == "chess",
+                };
+            }
+
+            if (type == "chess-move")
+            {
+                return new Applied(null, false)
+                {
+                    ChangedChess = TryReadChessMove(root, out var move) && room.TryChessMove(seat, move),
+                };
+            }
+
+            if (type == "chess-rematch")
+            {
+                return new Applied(null, false)
+                {
+                    ChangedChess = room.TryChessRematch(),
                 };
             }
 
@@ -90,5 +109,26 @@ public static class RoomMessage
         {
             return default;
         }
+    }
+
+    private static bool TryReadChessMove(JsonElement root, out ChessMove move)
+    {
+        move = default;
+        if (!root.TryGetProperty("from", out var fromElement) || fromElement.ValueKind != JsonValueKind.String ||
+            !root.TryGetProperty("to", out var toElement) || toElement.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        char? promotion = null;
+        if (root.TryGetProperty("promotion", out var promotionElement) &&
+            promotionElement.ValueKind == JsonValueKind.String &&
+            promotionElement.GetString() is { Length: 1 } piece)
+        {
+            promotion = piece[0];
+        }
+
+        move = new ChessMove(fromElement.GetString()!, toElement.GetString()!, promotion);
+        return true;
     }
 }

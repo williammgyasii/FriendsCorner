@@ -11,12 +11,16 @@ public sealed class RoomRegistry
     private readonly Dictionary<string, RoomSession> _rooms = new();
     private readonly Lock _gate = new();
     private readonly BoardTable _boards;
+    private readonly ChessTable _chess;
     private readonly BoardRecorder _recorder;
+    private readonly ChessRecorder _chessRecorder;
 
-    public RoomRegistry(BoardTable boards, BoardRecorder recorder)
+    public RoomRegistry(BoardTable boards, ChessTable chess, BoardRecorder recorder, ChessRecorder chessRecorder)
     {
         _boards = boards;
+        _chess = chess;
         _recorder = recorder;
+        _chessRecorder = chessRecorder;
     }
 
     public string Create()
@@ -24,7 +28,7 @@ public sealed class RoomRegistry
         var id = Guid.NewGuid().ToString("N");
         lock (_gate)
         {
-            _rooms[id] = new RoomSession(id, () => Remove(id), _recorder);
+            _rooms[id] = NewSession(id);
         }
 
         return id;
@@ -49,7 +53,8 @@ public sealed class RoomRegistry
         }
 
         var board = await _boards.Load(id);
-        if (board is null)
+        var chess = board is null ? await _chess.Load(id) : null;
+        if (board is null && chess is null)
         {
             return null;
         }
@@ -61,12 +66,22 @@ public sealed class RoomRegistry
                 return existing;
             }
 
-            var session = new RoomSession(id, () => Remove(id), _recorder);
-            session.RestoreTicTacToe(board);
+            var session = NewSession(id);
+            if (board is not null)
+            {
+                session.RestoreTicTacToe(board);
+            }
+            else
+            {
+                session.RestoreChess(chess!);
+            }
+
             _rooms[id] = session;
             return session;
         }
     }
+
+    private RoomSession NewSession(string id) => new(id, () => Remove(id), _recorder, _chessRecorder);
 
     private void Remove(string id)
     {
@@ -82,20 +97,24 @@ public sealed class RoomSession
     private readonly Room _room = new();
     private readonly string _roomId;
     private readonly BoardRecorder _recorder;
+    private readonly ChessRecorder _chessRecorder;
     private readonly Action _onEmpty;
     private readonly Lock _gate = new();
     private readonly Dictionary<Seat, WebSocket> _sockets = new();
     private readonly CancellationTokenSource _stopping = new();
     private int _clockStarted;
 
-    public RoomSession(string roomId, Action onEmpty, BoardRecorder recorder)
+    public RoomSession(string roomId, Action onEmpty, BoardRecorder recorder, ChessRecorder chessRecorder)
     {
         _roomId = roomId;
         _onEmpty = onEmpty;
         _recorder = recorder;
+        _chessRecorder = chessRecorder;
     }
 
     public void RestoreTicTacToe(Board board) => _room.RestoreTicTacToe(board);
+
+    public void RestoreChess(ChessBoard board) => _room.RestoreChess(board);
 
     public async Task Join(WebSocket socket, CancellationToken cancellationToken)
     {
@@ -186,7 +205,7 @@ public sealed class RoomSession
                 await Forward(seat, applied.Forward, cancellationToken);
             }
 
-            if (applied.OpenedWorld || applied.ChangedBoard)
+            if (applied.OpenedWorld || applied.ChangedBoard || applied.ChangedChess)
             {
                 await Broadcast(cancellationToken, tick: false);
             }
@@ -194,6 +213,11 @@ public sealed class RoomSession
             if (applied.ChangedBoard && _room.TicTacToe is not null)
             {
                 _recorder.Note(_roomId, _room.TicTacToe);
+            }
+
+            if (applied.ChangedChess && _room.Chess is not null)
+            {
+                _chessRecorder.Note(_roomId, _room.Chess);
             }
         }
     }
@@ -299,6 +323,26 @@ public sealed class RoomSession
                     next = _room.TicTacToe.Next.ToString(),
                     winner = _room.TicTacToe.Winner?.ToString(),
                     draw = _room.TicTacToe.IsDraw,
+                },
+            chess = _room.Chess is not { } chess
+                ? null
+                : new
+                {
+                    fen = chess.Fen,
+                    white = chess.White.ToString(),
+                    toMove = chess.ToMove.ToString(),
+                    inCheck = chess.InCheck,
+                    lastMove = chess.LastMove is { } last ? new { from = last.From, to = last.To } : null,
+                    outcome = chess.Outcome is not { } outcome
+                        ? null
+                        : new
+                        {
+                            ending = outcome.Ending == ChessEnding.Checkmate ? "checkmate" : "stalemate",
+                            winner = outcome.Winner?.ToString(),
+                        },
+                    legalMoves = chess.LegalMoves
+                        .Select(move => new { from = move.From, to = move.To, promotion = move.Promotion?.ToString() })
+                        .ToArray(),
                 },
             players = new { A = Player(Seat.A), B = Player(Seat.B) },
         });
