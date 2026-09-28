@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 import { fallbackIceServers, iceServersFrom } from '../src/ice.ts'
 
 test('a TURN response becomes the ICE servers, without the port browsers block', () => {

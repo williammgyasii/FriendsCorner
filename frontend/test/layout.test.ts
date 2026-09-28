@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 import { pickLayout } from '../src/layout.ts'
 
 test('a phone held upright is portrait', () => {

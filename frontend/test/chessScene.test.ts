@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 import { piecesFrom } from '../src/chessLook.ts'
 import { fitCamera, planMoves, squareToWorld, worldToSquare, type CameraFit } from '../src/chessScene.ts'
 
