@@ -1,16 +1,16 @@
+using FriendsCorner.Core.Engines.Games;
+
 namespace FriendsCorner.Core.Engines;
 
 public abstract record RoomCommand;
 
 public sealed record Steer(double X, double Y) : RoomCommand;
 
-public sealed record Place(int Square) : RoomCommand;
+public sealed record Place(int Square) : GameMove;
 
 public sealed record Rematch : RoomCommand;
 
-public sealed record MoveChess(ChessMove Move) : RoomCommand;
-
-public sealed record ChessRematch : RoomCommand;
+public sealed record MoveChess(ChessMove Move) : GameMove;
 
 public sealed record PickGame(string Game) : RoomCommand;
 
@@ -28,6 +28,5 @@ public enum RoomChange
 {
     None = 0,
     Lobby = 1,
-    TicTacToe = 2,
-    Chess = 4,
+    Game = 2,
 }

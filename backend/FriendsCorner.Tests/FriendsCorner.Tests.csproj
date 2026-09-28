@@ -17,6 +17,8 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="FriendsCorner.Core.Engines" />
+    <Using Include="FriendsCorner.Core.Engines.Games" />
+    <Using Include="FriendsCorner.Core.Engines.LetterTiles" />
   </ItemGroup>
 
   <ItemGroup>

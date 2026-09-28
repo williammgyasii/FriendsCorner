@@ -35,7 +35,7 @@ public class StateMessageAccessorTests
         var json = _state.Write(room, Seat.B, Now);
 
         const string expected = """
-            {"type":"state","you":"B","world":null,"board":null,"chess":null,
+            {"type":"state","you":"B","world":null,"board":null,"chess":null,"tiles":null,
             "players":{"A":{"x":240,"y":160},"B":{"x":240,"y":160},"C":null,"D":null},
             "lobby":{"host":"A","capacity":2,"pick":"chess","canStart":false,"countdownMs":null,
             "members":[{"seat":"A","ready":false,"camera":true,"mic":true,"playing":true},
@@ -69,6 +69,7 @@ public class StateMessageAccessorTests
         using var state = JsonDocument.Parse(_state.Write(room, Seat.A, Now));
 
         Assert.Equal("tictactoe", state.RootElement.GetProperty("world").GetString());
+        Assert.Equal(JsonValueKind.Null, state.RootElement.GetProperty("tiles").ValueKind);
         Assert.Equal(
             """{"squares":["X",null,null,null,null,null,null,null,null],"next":"B","winner":null,"draw":false}""",
             state.RootElement.GetProperty("board").GetRawText());
@@ -84,7 +85,8 @@ public class StateMessageAccessorTests
         using var state = JsonDocument.Parse(_state.Write(room, Seat.A, Now));
         var chess = state.RootElement.GetProperty("chess");
 
-        Assert.Equal(room.Chess!.Fen, chess.GetProperty("fen").GetString());
+        Assert.Equal(room.RunningChess().Fen, chess.GetProperty("fen").GetString());
+        Assert.Equal(JsonValueKind.Null, state.RootElement.GetProperty("tiles").ValueKind);
         Assert.Equal("A", chess.GetProperty("white").GetString());
         Assert.Equal("B", chess.GetProperty("toMove").GetString());
         Assert.False(chess.GetProperty("inCheck").GetBoolean());

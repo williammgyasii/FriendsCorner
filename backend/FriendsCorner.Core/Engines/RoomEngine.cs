@@ -1,3 +1,5 @@
+using FriendsCorner.Core.Engines.Games;
+
 namespace FriendsCorner.Core.Engines;
 
 public enum Seat
@@ -21,92 +23,46 @@ public sealed class RoomEngine
 
     public IReadOnlyDictionary<Seat, Position> Positions => _positions;
 
+    private const string Floor = "room";
+
+    private readonly GameCatalog _games;
+
+    public RoomEngine()
+        : this(new GameCatalog())
+    {
+    }
+
+    public RoomEngine(GameCatalog games) => _games = games;
+
     public string? World { get; private set; }
+
+    public IGameEngine? Game { get; private set; }
 
     public bool TryLaunch(string world)
     {
-        if (world is not ("room" or "tictactoe" or "chess"))
+        if (World is not null)
         {
-            return false;
+            return World == world;
         }
 
-        if (World is not null && World != world)
+        if (world != Floor)
         {
-            return false;
+            if (!_games.TryStart(world, Lobby.Playing, out var game))
+            {
+                return false;
+            }
+
+            Game = game;
         }
 
         World = world;
-        if (world == "tictactoe")
-        {
-            TicTacToe ??= Board.Empty();
-        }
-
-        if (world == "chess")
-        {
-            Chess ??= ChessBoard.Start();
-        }
-
         return true;
     }
 
-    public ChessBoard? Chess { get; private set; }
-
-    public void RestoreChess(ChessBoard board)
+    public void Restore(IGameEngine game)
     {
-        World = "chess";
-        Chess = board;
-    }
-
-    public bool TryChessMove(Seat seat, ChessMove move)
-    {
-        if (Chess is null || !Chess.TryMove(seat, move, out var updated))
-        {
-            return false;
-        }
-
-        Chess = updated;
-        return true;
-    }
-
-    public bool TryChessRematch()
-    {
-        if (Chess is null || !Chess.TryRematch(out var updated))
-        {
-            return false;
-        }
-
-        Chess = updated;
-        return true;
-    }
-
-    public Board? TicTacToe { get; private set; }
-
-    public void RestoreTicTacToe(Board board)
-    {
-        World = "tictactoe";
-        TicTacToe = board;
-    }
-
-    public bool TryPlace(Seat seat, int square)
-    {
-        if (TicTacToe is null || !TicTacToe.TryPlace(seat, square, out var updated))
-        {
-            return false;
-        }
-
-        TicTacToe = updated;
-        return true;
-    }
-
-    public bool TryRematch()
-    {
-        if (TicTacToe is null || !TicTacToe.TryRematch(out var updated))
-        {
-            return false;
-        }
-
-        TicTacToe = updated;
-        return true;
+        World = game.Id;
+        Game = game;
     }
 
     public LobbyEngine Lobby { get; } = new();
@@ -122,10 +78,8 @@ public sealed class RoomEngine
 
         var changed = command switch
         {
-            Place place => TryPlace(seat, place.Square),
-            Rematch => TryRematch(),
-            MoveChess move => TryChessMove(seat, move.Move),
-            ChessRematch => TryChessRematch(),
+            GameMove move => Game?.TryPlay(seat, move) ?? false,
+            Rematch => Game?.TryRematch() ?? false,
             PickGame pick => Lobby.TryPick(seat, pick.Game),
             SetReady ready => Lobby.TrySetReady(seat, ready.Ready),
             SetCapacity capacity => Lobby.TrySetCapacity(seat, capacity.Size),
@@ -136,6 +90,8 @@ public sealed class RoomEngine
 
         return changed ? ChangeOf(command) : RoomChange.None;
     }
+
+    public GameAnswer? Ask(Seat seat, GameQuestion question) => Game?.Ask(seat, question);
 
     // The face call is one-to-one between seats A and B for now.
     public static Seat? CallPartner(Seat seat) => seat switch
@@ -151,12 +107,8 @@ public sealed class RoomEngine
         return true;
     }
 
-    private static RoomChange ChangeOf(RoomCommand command) => command switch
-    {
-        Place or Rematch => RoomChange.TicTacToe,
-        MoveChess or ChessRematch => RoomChange.Chess,
-        _ => RoomChange.Lobby,
-    };
+    private static RoomChange ChangeOf(RoomCommand command) =>
+        command is GameMove or Rematch ? RoomChange.Game : RoomChange.Lobby;
 
     public bool TryFinishCountdown(DateTimeOffset now) =>
         Lobby.TryFinishCountdown(now, out var world) && TryLaunch(world);
@@ -171,12 +123,7 @@ public sealed class RoomEngine
             return RoomChange.None;
         }
 
-        return World switch
-        {
-            "tictactoe" => RoomChange.Lobby | RoomChange.TicTacToe,
-            "chess" => RoomChange.Lobby | RoomChange.Chess,
-            _ => RoomChange.Lobby,
-        };
+        return Game is null ? RoomChange.Lobby : RoomChange.Lobby | RoomChange.Game;
     }
 
     public bool TryAddSeat(out Seat seat)

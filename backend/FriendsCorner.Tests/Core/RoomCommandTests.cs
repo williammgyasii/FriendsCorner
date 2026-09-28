@@ -106,8 +106,8 @@ public class RoomCommandTests
 
         var change = room.Apply(seat, new Place(0), Now);
 
-        Assert.Equal(RoomChange.TicTacToe, change);
-        Assert.Equal('X', room.TicTacToe!.Squares[0]);
+        Assert.Equal(RoomChange.Game, change);
+        Assert.Equal('X', room.RunningTicTacToe().Squares[0]);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class RoomCommandTests
 
         var change = room.Apply(Seat.A, new MoveChess(new ChessMove("e2", "e4")), Now);
 
-        Assert.Equal(RoomChange.Chess, change);
+        Assert.Equal(RoomChange.Game, change);
     }
 
     [Fact]
@@ -155,8 +155,8 @@ public class RoomCommandTests
     }
 
     [Theory]
-    [InlineData("chess", RoomChange.Lobby | RoomChange.Chess)]
-    [InlineData("tictactoe", RoomChange.Lobby | RoomChange.TicTacToe)]
+    [InlineData("chess", RoomChange.Lobby | RoomChange.Game)]
+    [InlineData("tictactoe", RoomChange.Lobby | RoomChange.Game)]
     [InlineData("room", RoomChange.Lobby)]
     public void The_clock_step_that_ends_the_countdown_opens_the_picked_game(string game, RoomChange expected)
     {

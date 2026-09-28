@@ -1,7 +1,6 @@
 using System.Net.WebSockets;
 using FriendsCorner.Core.Managers;
 using FriendsCorner.Core.Accessors;
-using FriendsCorner.Infrastructure.Accessors;
 
 namespace FriendsCorner.Tests;
 
@@ -12,19 +11,20 @@ public class RoomRegistryManagerTests
     {
         Assert.True(ChessBoard.Start().TryMove(Seat.A, new ChessMove("e2", "e4"), out var saved));
         var factory = new FakeRoomFactory();
-        var registry = new RoomRegistryManager(new FakeBoardTable(), new FakeChessTable { Saved = saved }, factory);
+        var registry = new RoomRegistryManager(new FakeGameTable { Saved = new ChessGame(saved) }, factory);
 
         var room = await registry.Find("old-room");
 
         Assert.NotNull(room);
         Assert.True(registry.IsLive("old-room"));
-        Assert.Same(saved, Assert.Single(factory.Made).RestoredChess);
+        var restored = Assert.IsType<ChessGame>(Assert.Single(factory.Made).Restored);
+        Assert.Same(saved, restored.Board);
     }
 
     [Fact]
     public async Task A_room_that_was_never_saved_is_not_found()
     {
-        var registry = new RoomRegistryManager(new FakeBoardTable(), new FakeChessTable(), new FakeRoomFactory());
+        var registry = new RoomRegistryManager(new FakeGameTable(), new FakeRoomFactory());
 
         Assert.Null(await registry.Find("nowhere"));
         Assert.False(registry.IsLive("nowhere"));
@@ -33,19 +33,19 @@ public class RoomRegistryManagerTests
     [Fact]
     public async Task A_live_room_is_found_without_reading_the_database()
     {
-        var chess = new FakeChessTable();
-        var registry = new RoomRegistryManager(new FakeBoardTable(), chess, new FakeRoomFactory());
+        var games = new FakeGameTable();
+        var registry = new RoomRegistryManager(games, new FakeRoomFactory());
         var id = registry.Create();
 
         Assert.NotNull(await registry.Find(id));
-        Assert.Equal(0, chess.Loads);
+        Assert.Equal(0, games.Loads);
     }
 
     [Fact]
     public void An_empty_room_is_forgotten()
     {
         var factory = new FakeRoomFactory();
-        var registry = new RoomRegistryManager(new FakeBoardTable(), new FakeChessTable(), factory);
+        var registry = new RoomRegistryManager(new FakeGameTable(), factory);
         var id = registry.Create();
 
         factory.Made[0].OnEmpty();
@@ -53,30 +53,17 @@ public class RoomRegistryManagerTests
         Assert.False(registry.IsLive(id));
     }
 
-    private sealed class FakeBoardTable : IBoardTableAccessor
+    private sealed class FakeGameTable : IGameTableAccessor
     {
-        public Task Save(string roomId, Board board) => Task.CompletedTask;
-
-        public Task<Board?> Load(string roomId) => Task.FromResult<Board?>(null);
-
-        public Task Remove(string roomId) => Task.CompletedTask;
-    }
-
-    private sealed class FakeChessTable : IChessTableAccessor
-    {
-        public ChessBoard? Saved { get; init; }
+        public IGameEngine? Saved { get; init; }
 
         public int Loads { get; private set; }
 
-        public Task Save(string roomId, ChessBoard board) => Task.CompletedTask;
-
-        public Task<ChessBoard?> Load(string roomId)
+        public Task<IGameEngine?> Load(string roomId)
         {
             Loads++;
             return Task.FromResult(Saved);
         }
-
-        public Task Remove(string roomId) => Task.CompletedTask;
     }
 
     private sealed class FakeRoomFactory : IRoomManagerFactory
@@ -95,13 +82,9 @@ public class RoomRegistryManagerTests
     {
         public Action OnEmpty { get; } = onEmpty;
 
-        public ChessBoard? RestoredChess { get; private set; }
+        public IGameEngine? Restored { get; private set; }
 
-        public void RestoreTicTacToe(Board board)
-        {
-        }
-
-        public void RestoreChess(ChessBoard board) => RestoredChess = board;
+        public void Restore(IGameEngine game) => Restored = game;
 
         public Task<Seat?> Join(WebSocket socket, CancellationToken cancellationToken) => Task.FromResult<Seat?>(null);
 

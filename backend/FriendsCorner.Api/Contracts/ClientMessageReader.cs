@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FriendsCorner.Core.Engines;
+using FriendsCorner.Core.Engines.LetterTiles;
 
 namespace FriendsCorner.Api.Contracts;
 
@@ -43,14 +44,49 @@ public sealed class ClientMessageReader : IClientMessageReader
         "rematch" => new Rematch(),
         "chess-move" when Text(root, "from") is { } from && Text(root, "to") is { } to =>
             new MoveChess(new ChessMove(from, to, Text(root, "promotion") is [var piece] ? piece : null)),
-        "chess-rematch" => new ChessRematch(),
+        "chess-rematch" => new Rematch(),
         "pick" when Text(root, "game") is { } game => new PickGame(game),
         "ready" when Flag(root, "ready") is { } ready => new SetReady(ready),
         "capacity" when Whole(root, "size") is { } size => new SetCapacity(size),
         "media" when Flag(root, "camera") is { } camera && Flag(root, "mic") is { } mic => new ShareMedia(camera, mic),
         "start" => new StartGame(),
+        "tiles-play" when Placed(root) is { } tiles => new PlayTiles(tiles),
+        "tiles-preview" when Placed(root) is { } tiles => new PreviewTiles(tiles),
+        "tiles-exchange" when Text(root, "letters") is { Length: > 0 } letters && RackTiles(letters) is { } rack => new ExchangeTiles(rack),
+        "tiles-pass" => new PassTurn(),
+        "tiles-rematch" => new Rematch(),
         _ => null,
     };
+
+    private static PlacedTile[]? Placed(JsonElement root)
+    {
+        if (!root.TryGetProperty("tiles", out var tiles) || tiles.ValueKind != JsonValueKind.Array || tiles.GetArrayLength() == 0)
+        {
+            return null;
+        }
+
+        var placed = new List<PlacedTile>();
+        foreach (var tile in tiles.EnumerateArray())
+        {
+            if (tile.ValueKind != JsonValueKind.Object
+                || Whole(tile, "square") is not { } square
+                || Text(tile, "letter") is not [var letter]
+                || !char.IsAsciiLetter(letter))
+            {
+                return null;
+            }
+
+            var face = new Tile(char.ToUpperInvariant(letter));
+            placed.Add(new PlacedTile(square, Flag(tile, "blank") == true ? Tile.Blank.As(letter) : face));
+        }
+
+        return placed.ToArray();
+    }
+
+    private static Tile[]? RackTiles(string letters) =>
+        letters.All(letter => letter == Tile.Unassigned || char.IsAsciiLetter(letter))
+            ? letters.Select(letter => letter == Tile.Unassigned ? Tile.Blank : new Tile(char.ToUpperInvariant(letter))).ToArray()
+            : null;
 
     private static string? Text(JsonElement root, string name) =>
         root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;

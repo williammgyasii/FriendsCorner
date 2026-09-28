@@ -1,5 +1,7 @@
 using FriendsCorner.Core.Accessors;
 using FriendsCorner.Core.Engines;
+using FriendsCorner.Core.Engines.LetterTiles;
+
 namespace FriendsCorner.Infrastructure.Accessors;
 
 // Keeps only the latest snapshot per room and writes it off the game's path.
@@ -137,6 +139,18 @@ public sealed class ChessRecorderAccessor : SnapshotRecorderAccessor<ChessBoard>
     }
 
     public ChessRecorderAccessor(Func<string, ChessBoard, Task> write)
+        : base(write)
+    {
+    }
+}
+
+public sealed class LetterTilesRecorderAccessor : SnapshotRecorderAccessor<LetterTilesState>, ILetterTilesRecorderAccessor
+{
+    public LetterTilesRecorderAccessor()
+    {
+    }
+
+    public LetterTilesRecorderAccessor(Func<string, LetterTilesState, Task> write)
         : base(write)
     {
     }

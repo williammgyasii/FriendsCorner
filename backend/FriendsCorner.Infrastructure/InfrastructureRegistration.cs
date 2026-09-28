@@ -1,5 +1,6 @@
 using FriendsCorner.Core.Accessors;
 using FriendsCorner.Core.Engines;
+using FriendsCorner.Core.Engines.Games;
 using FriendsCorner.Core.Managers;
 using FriendsCorner.Core.Utilities;
 using FriendsCorner.Infrastructure.Accessors;
@@ -28,9 +29,18 @@ public static class InfrastructureRegistration
             new BoardRecorderAccessor(provider.GetRequiredService<IBoardTableAccessor>().Save));
         services.AddSingleton<IChessRecorderAccessor>(provider =>
             new ChessRecorderAccessor(provider.GetRequiredService<IChessTableAccessor>().Save));
+        services.AddSingleton<ILetterTilesTableAccessor, LetterTilesTableAccessor>();
+        services.AddSingleton<ILetterTilesRecorderAccessor>(provider =>
+            new LetterTilesRecorderAccessor(provider.GetRequiredService<ILetterTilesTableAccessor>().Save));
+        services.AddSingleton<IGameRecorderAccessor, GameRecorderAccessor>();
+        services.AddSingleton<IGameTableAccessor, GameTableAccessor>();
         services.AddSingleton<IRoomRegistryManager, RoomRegistryManager>();
         services.AddSingleton<IRoomManagerFactory, RoomManagerFactory>();
         services.AddHostedService<RecorderFlushAccessor>();
+
+        services.AddSingleton<IWordListAccessor, WordListAccessor>();
+        services.AddSingleton(provider =>
+            new GameCatalog(provider.GetRequiredService<IWordListAccessor>(), () => new Random()));
 
         // Stateless helpers: one copy is enough.
         services.AddSingleton<IStateMessageAccessor, StateMessageAccessor>();

@@ -13,9 +13,7 @@ public class ChessRoomTests
         Assert.True(room.TryLaunch("chess"));
 
         Assert.Equal("chess", room.World);
-        Assert.NotNull(room.Chess);
-        Assert.Equal(Seat.A, room.Chess.White);
-        Assert.Null(room.TicTacToe);
+        Assert.Equal(Seat.A, room.RunningChess().White);
     }
 
     [Fact]
@@ -25,7 +23,7 @@ public class ChessRoomTests
         Assert.True(room.TryLaunch("chess"));
 
         Assert.False(room.TryLaunch("tictactoe"));
-        Assert.Null(room.TicTacToe);
+        Assert.IsType<ChessGame>(room.Game);
     }
 
     [Fact]
@@ -34,9 +32,9 @@ public class ChessRoomTests
         var room = new RoomEngine();
         Assert.True(room.TryLaunch("chess"));
 
-        Assert.False(room.TryChessMove(Seat.B, new ChessMove("e7", "e5")));
-        Assert.True(room.TryChessMove(Seat.A, new ChessMove("e2", "e4")));
-        Assert.Equal(Seat.B, room.Chess!.ToMove);
+        Assert.False(room.Game!.TryPlay(Seat.B, new MoveChess(new ChessMove("e7", "e5"))));
+        Assert.True(room.Game!.TryPlay(Seat.A, new MoveChess(new ChessMove("e2", "e4"))));
+        Assert.Equal(Seat.B, room.RunningChess().ToMove);
     }
 
     [Fact]
@@ -44,12 +42,12 @@ public class ChessRoomTests
     {
         var room = new RoomEngine();
         Assert.True(room.TryLaunch("chess"));
-        Assert.False(room.TryChessRematch());
+        Assert.False(room.Game!.TryRematch());
 
         PlayFoolsMate(room);
 
-        Assert.True(room.TryChessRematch());
-        Assert.Equal(Seat.B, room.Chess!.White);
+        Assert.True(room.Game!.TryRematch());
+        Assert.Equal(Seat.B, room.RunningChess().White);
     }
 
     [Fact]
@@ -59,11 +57,11 @@ public class ChessRoomTests
             "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1", Seat.B, out var saved));
         var room = new RoomEngine();
 
-        room.RestoreChess(saved);
+        room.Restore(new ChessGame(saved));
 
         Assert.Equal("chess", room.World);
-        Assert.Equal(Seat.B, room.Chess!.White);
-        Assert.Equal(Seat.A, room.Chess.ToMove);
+        Assert.Equal(Seat.B, room.RunningChess().White);
+        Assert.Equal(Seat.A, room.RunningChess().ToMove);
     }
 
     [Fact]
@@ -84,8 +82,8 @@ public class ChessRoomTests
 
         var change = room.Apply(seat, new MoveChess(new ChessMove("e2", "e4")), Now);
 
-        Assert.Equal(RoomChange.Chess, change);
-        Assert.Equal(Seat.B, room.Chess!.ToMove);
+        Assert.Equal(RoomChange.Game, change);
+        Assert.Equal(Seat.B, room.RunningChess().ToMove);
     }
 
     [Fact]
@@ -93,12 +91,12 @@ public class ChessRoomTests
     {
         var room = new RoomEngine();
         Assert.True(ChessBoard.TryFromFen("8/P7/8/8/8/8/8/k6K w - - 0 1", out var board));
-        room.RestoreChess(board);
+        room.Restore(new ChessGame(board));
 
         var change = room.Apply(Seat.A, new MoveChess(new ChessMove("a7", "a8", 'n')), Now);
 
-        Assert.Equal(RoomChange.Chess, change);
-        Assert.StartsWith("N7/", room.Chess!.Fen);
+        Assert.Equal(RoomChange.Game, change);
+        Assert.StartsWith("N7/", room.RunningChess().Fen);
     }
 
     [Fact]
@@ -108,10 +106,10 @@ public class ChessRoomTests
         Assert.True(room.TryLaunch("chess"));
         PlayFoolsMate(room);
 
-        var change = room.Apply(Seat.A, new ChessRematch(), Now);
+        var change = room.Apply(Seat.A, new Rematch(), Now);
 
-        Assert.Equal(RoomChange.Chess, change);
-        Assert.Null(room.Chess!.Outcome);
+        Assert.Equal(RoomChange.Game, change);
+        Assert.Null(room.RunningChess().Outcome);
     }
 
     private static readonly DateTimeOffset Now = new(2026, 9, 27, 20, 0, 0, TimeSpan.Zero);
@@ -134,7 +132,7 @@ public class ChessRoomTests
     {
         foreach (var (from, to) in new[] { ("f2", "f3"), ("e7", "e5"), ("g2", "g4"), ("d8", "h4") })
         {
-            Assert.True(room.TryChessMove(room.Chess!.ToMove, new ChessMove(from, to)));
+            Assert.True(room.Game!.TryPlay(room.RunningChess().ToMove, new MoveChess(new ChessMove(from, to))));
         }
     }
 }

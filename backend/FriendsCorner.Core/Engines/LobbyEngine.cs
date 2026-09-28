@@ -21,6 +21,7 @@ public sealed class LobbyEngine
         new("room", MaxCapacity),
         new("tictactoe", 2),
         new("chess", 2),
+        new("tiles", MaxCapacity),
     ];
 
     private readonly List<Seat> _players = [];
