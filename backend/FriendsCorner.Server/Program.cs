@@ -8,6 +8,8 @@ var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL")
     ?? throw new InvalidOperationException("DATABASE_URL is missing.");
 builder.Services.AddSingleton(new BoardTable(databaseUrl));
 builder.Services.AddSingleton(services => new BoardRecorder(services.GetRequiredService<BoardTable>().Save));
+builder.Services.AddSingleton(new ChessTable(databaseUrl));
+builder.Services.AddSingleton(services => new ChessRecorder(services.GetRequiredService<ChessTable>().Save));
 builder.Services.AddHostedService<BoardRecordingService>();
 builder.Services.AddSingleton<RoomRegistry>();
 

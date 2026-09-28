@@ -3,21 +3,23 @@ using Microsoft.Extensions.Hosting;
 
 namespace FriendsCorner.Server;
 
-public sealed class BoardRecorder
+// Keeps only the latest snapshot per room and writes it off the game's path.
+public abstract class SnapshotRecorder<TBoard>
+    where TBoard : class
 {
-    private readonly Func<string, Board, Task>? _write;
+    private readonly Func<string, TBoard, Task>? _write;
     private readonly Lock _gate = new();
-    private readonly Dictionary<string, Board> _waiting = new();
+    private readonly Dictionary<string, TBoard> _waiting = new();
     private Task _idle = Task.CompletedTask;
     private bool _draining;
 
-    public BoardRecorder()
+    protected SnapshotRecorder()
     {
     }
 
-    public BoardRecorder(Func<string, Board, Task> write) => _write = write;
+    protected SnapshotRecorder(Func<string, TBoard, Task> write) => _write = write;
 
-    public void Note(string roomId, Board board)
+    public void Note(string roomId, TBoard board)
     {
         lock (_gate)
         {
@@ -27,7 +29,7 @@ public sealed class BoardRecorder
         Kick();
     }
 
-    public IReadOnlyList<(string RoomId, Board Board)> TakeWaiting()
+    public IReadOnlyList<(string RoomId, TBoard Board)> TakeWaiting()
     {
         lock (_gate)
         {
@@ -37,17 +39,6 @@ public sealed class BoardRecorder
             _waiting.Clear();
             return taken;
         }
-    }
-
-    public Task ShowThenRecord(string roomId, Room room, Action show)
-    {
-        show();
-        if (room.TicTacToe is { } board)
-        {
-            Note(roomId, board);
-        }
-
-        return Task.CompletedTask;
     }
 
     public Task WhenQuiet() => FlushAsync();
@@ -128,11 +119,51 @@ public sealed class BoardRecorder
     }
 }
 
+public sealed class BoardRecorder : SnapshotRecorder<Board>
+{
+    public BoardRecorder()
+    {
+    }
+
+    public BoardRecorder(Func<string, Board, Task> write)
+        : base(write)
+    {
+    }
+
+    public Task ShowThenRecord(string roomId, Room room, Action show)
+    {
+        show();
+        if (room.TicTacToe is { } board)
+        {
+            Note(roomId, board);
+        }
+
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class ChessRecorder : SnapshotRecorder<ChessBoard>
+{
+    public ChessRecorder()
+    {
+    }
+
+    public ChessRecorder(Func<string, ChessBoard, Task> write)
+        : base(write)
+    {
+    }
+}
+
 public sealed class BoardRecordingService : BackgroundService
 {
-    private readonly BoardRecorder _recorder;
+    private readonly BoardRecorder _boards;
+    private readonly ChessRecorder _chess;
 
-    public BoardRecordingService(BoardRecorder recorder) => _recorder = recorder;
+    public BoardRecordingService(BoardRecorder boards, ChessRecorder chess)
+    {
+        _boards = boards;
+        _chess = chess;
+    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -144,6 +175,6 @@ public sealed class BoardRecordingService : BackgroundService
         {
         }
 
-        await _recorder.WhenQuiet();
+        await Task.WhenAll(_boards.WhenQuiet(), _chess.WhenQuiet());
     }
 }
