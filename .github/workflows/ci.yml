@@ -27,6 +27,23 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: friends
+          POSTGRES_PASSWORD: friends
+          POSTGRES_DB: friends_corner
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U friends"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Key=value form: a postgres:// URL would force SSL, which this container does not serve.
+      ConnectionStrings__FriendsCorner: Host=localhost;Port=5432;Username=friends;Password=friends;Database=friends_corner
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
