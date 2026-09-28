@@ -1,0 +1,77 @@
+name: Release
+
+# Pushing a version tag (git tag v0.2.0 && git push origin v0.2.0) is the approval to ship to production.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One release at a time; a newer tag waits instead of cancelling a half-finished release.
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
+jobs:
+  # Compares this tag with the previous one; the first tag or a manual run ships everything.
+  # A change to an area's workflow counts as a change to that area, so it ships again.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.diff.outputs.backend }}
+      frontend: ${{ steps.diff.outputs.frontend }}
+      terraform: ${{ steps.diff.outputs.terraform }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        run: |
+          previous=$(git describe --tags --abbrev=0 --match 'v*' HEAD^ 2>/dev/null || true)
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ -z "$previous" ]; then
+            echo "Shipping everything"
+            printf 'backend=true\nfrontend=true\nterraform=true\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$previous" HEAD)
+          echo "Changed since $previous:"; echo "$changed"
+          has() { echo "$changed" | grep -qE "$1" && echo true || echo false; }
+          {
+            echo "backend=$(has '^(backend/|edge/api/|edge/package|\.github/workflows/backend\.yml)')"
+            echo "frontend=$(has '^(frontend/|edge/web/|edge/package|\.github/workflows/frontend\.yml)')"
+            echo "terraform=$(has '^(infra/|\.github/workflows/terraform\.yml)')"
+          } >> "$GITHUB_OUTPUT"
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    uses: ./.github/workflows/backend.yml
+    with:
+      deploy: true
+    secrets: inherit
+
+  # The web Worker binds to the API Worker, so the backend ships first when both change.
+  frontend:
+    needs: [changes, backend]
+    if: >-
+      always() &&
+      needs.changes.outputs.frontend == 'true' &&
+      contains(fromJSON('["success", "skipped"]'), needs.backend.result)
+    uses: ./.github/workflows/frontend.yml
+    with:
+      deploy: true
+    secrets: inherit
+
+  terraform:
+    needs: [changes, backend, frontend]
+    if: >-
+      always() &&
+      needs.changes.outputs.terraform == 'true' &&
+      contains(fromJSON('["success", "skipped"]'), needs.backend.result) &&
+      contains(fromJSON('["success", "skipped"]'), needs.frontend.result)
+    uses: ./.github/workflows/terraform.yml
+    with:
+      deploy: true
+    secrets: inherit

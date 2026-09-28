@@ -1,31 +1,23 @@
-name: CI
+name: Backend
 
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'backend/**'
+      - 'edge/**'
+      - '.github/workflows/backend.yml'
   workflow_call:
+    inputs:
+      deploy:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
-  frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
-
-  backend:
+  test:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -53,6 +45,7 @@ jobs:
       - name: Container image builds
         run: docker build --platform linux/amd64 backend
 
+  # One npm package holds both Workers, so its tests run here and in frontend.yml.
   edge:
     runs-on: ubuntu-latest
     defaults:
@@ -69,30 +62,22 @@ jobs:
       - run: npm test
       - run: npm run typecheck
 
-  terraform-plan:
+  deploy:
+    needs: [test, edge]
+    if: inputs.deploy
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: infra
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.TF_STATE_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.TF_STATE_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    defaults:
+      run:
+        working-directory: edge
     steps:
       - uses: actions/checkout@v7
-      - uses: hashicorp/setup-terraform@v4
+      - uses: actions/setup-node@v7
         with:
-          terraform_version: 1.15.8
-          terraform_wrapper: false
-      - run: terraform fmt -check -recursive
-      - run: terraform init -input=false
-      - run: terraform validate
-      - name: Plan
-        run: |
-          terraform plan -input=false -no-color -lock-timeout=2m > plan.txt
-          {
-            echo '### Terraform plan'
-            echo '```'
-            cat plan.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          node-version: 26
+          cache: npm
+          cache-dependency-path: edge/package-lock.json
+      - run: npm ci
+      - run: npm run deploy:api
