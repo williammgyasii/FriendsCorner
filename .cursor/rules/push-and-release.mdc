@@ -1,5 +1,5 @@
 ---
-description: What "push" and "release" mean in FriendsCorner — push is PR then merge through CI; release is a tag that deploys to production
+description: What "push" and "release" mean in FriendsCorner — push is PR then merge through CI; release is a published GitHub Release that deploys to production
 alwaysApply: true
 ---
 
@@ -11,20 +11,27 @@ When William says the word, that is his approval for the whole flow below. Nothi
 
 `backend-ci.yml`, `frontend-ci.yml`, and `terraform-ci.yml` only run on pull requests into `main` that touch their paths, so a push straight to `main` skips CI. Never push to `main` directly. A PR that touches none of their paths (only `openspec/` or `.cursor/`) has no checks; that is expected.
 
-1. Commit on a branch named for the change (`add-letter-tiles`), not on `main`.
+1. Commit on a branch named for the change (`add-letter-tiles`), not on `main`. Add what a player or developer would notice to `CHANGELOG.md` under `## Unreleased` (`### Added`, `### Changed`, `### Fixed`) in the same PR.
 2. Push the branch and `gh pr create --base main` with a summary and a test plan.
 3. Watch `gh pr checks <n> --watch`. If a check fails, stop, read the log, and report the root cause. Do not merge a red PR.
 4. When it's green, `gh pr merge <n> --merge --delete-branch`. Use a merge commit so split commits stay separate; never squash or rebase.
 5. Switch to `main` and `git pull --ff-only`.
 
-## "Release" = tag `main`, which deploys to production
+## "Release" = publish a GitHub Release, which deploys to production
 
-There is one environment: production. `release.yml` runs on a `v*` tag. For each area that changed since the last tag it calls that area's CD workflow (`*-cd.yml`, which runs its `*-ci.yml` first), in order: backend (API Worker), then frontend (web Worker, which binds to the API), then Terraform. A failure stops everything after it.
+There is one environment: production. `release.yml` runs when a GitHub Release is published; a draft or a bare tag push does not ship. For each area that changed since the last release it calls that area's CD workflow (`*-cd.yml`, which runs its `*-ci.yml` first), in order: backend (API Worker), then frontend (web Worker, which binds to the API), then Terraform. A failure stops everything after it.
 
-1. If there is unmerged work, "push" it first. Only tag a commit that is on `origin/main` and has passed CI.
-2. Pick the next version from `git tag --sort=-v:refname`. Default is a minor bump for features (`v0.1.0` → `v0.2.0`) and a patch bump for fixes. Say which one you chose.
-3. `git tag -a vX.Y.Z -m "<what ships>"`, then `git push origin vX.Y.Z`.
-4. Watch the deploy run until it ends: `gh run watch <id> --exit-status`. Report which jobs shipped and which were skipped.
+1. If there is unmerged work, "push" it first. Only release a commit that is on `origin/main` and has passed CI.
+2. Pick the next version from `gh release list`. Default is a minor bump when `Unreleased` has `### Added` (`v0.1.0` → `v0.2.0`), otherwise a patch bump. Say which one you chose.
+3. On a branch, rename `## Unreleased` to `## vX.Y.Z — YYYY-MM-DD` and put an empty `## Unreleased` above it. "Push" that.
+4. Publish with that section as the notes:
+
+   ```bash
+   awk '/^## vX.Y.Z /{on=1; next} /^## /{on=0} on' CHANGELOG.md > /tmp/notes.md
+   gh release create vX.Y.Z --target main --title vX.Y.Z --notes-file /tmp/notes.md
+   ```
+
+5. Watch the run until it ends: `gh run watch <id> --exit-status`. Report which areas shipped and which were skipped.
 
 ## Auth
 
@@ -38,5 +45,6 @@ git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push -u
 ```
 ❌ "push" -> git push origin main
 ✅ "push" -> branch -> PR -> CI green -> merge commit -> pull main
-✅ "release" -> (push if needed) -> tag v0.2.0 -> deploy to production -> watch it finish
+❌ "release" -> git push origin v0.2.0   (a bare tag no longer ships)
+✅ "release" -> (push if needed) -> CHANGELOG section -> gh release create v0.2.0 -> watch it finish
 ```

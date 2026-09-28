@@ -1,15 +1,16 @@
 name: Release
 
-# Pushing a version tag (git tag v0.2.0 && git push origin v0.2.0) is the approval to ship to production.
+# Publishing a GitHub Release (gh release create v0.2.0) is the approval to ship to production.
+# Drafts don't ship; a pushed tag alone doesn't ship.
 on:
-  push:
-    tags: ['v*']
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# One release at a time; a newer tag waits instead of cancelling a half-finished release.
+# One release at a time; a newer release waits instead of cancelling a half-finished release.
 concurrency:
   group: release-production
   cancel-in-progress: false
