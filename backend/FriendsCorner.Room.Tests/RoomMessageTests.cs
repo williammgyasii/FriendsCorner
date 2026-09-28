@@ -1,6 +1,6 @@
-using DistanceTogether.Server;
+using FriendsCorner.Server;
 
-namespace DistanceTogether.Tests;
+namespace FriendsCorner.Tests;
 
 public class RoomMessageTests
 {

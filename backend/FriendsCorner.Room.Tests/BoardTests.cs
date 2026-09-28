@@ -1,4 +1,4 @@
-namespace DistanceTogether.Tests;
+namespace FriendsCorner.Tests;
 
 public class BoardTests
 {

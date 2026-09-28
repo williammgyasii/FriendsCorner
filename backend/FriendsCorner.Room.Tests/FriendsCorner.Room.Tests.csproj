@@ -19,9 +19,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DistanceTogether.Room\DistanceTogether.Room.csproj" />
-    <ProjectReference Include="..\DistanceTogether.Server\DistanceTogether.Server.csproj" />
-    <ProjectReference Include="..\DistanceTogether.Storage\DistanceTogether.Storage.csproj" />
+    <ProjectReference Include="..\FriendsCorner.Room\FriendsCorner.Room.csproj" />
+    <ProjectReference Include="..\FriendsCorner.Server\FriendsCorner.Server.csproj" />
+    <ProjectReference Include="..\FriendsCorner.Storage\FriendsCorner.Storage.csproj" />
   </ItemGroup>
 
 </Project>

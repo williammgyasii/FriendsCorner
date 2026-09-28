@@ -1,7 +1,7 @@
 using System.Text.Json;
-using DistanceTogether;
+using FriendsCorner;
 
-namespace DistanceTogether.Server;
+namespace FriendsCorner.Server;
 
 public readonly record struct Applied(string? Forward, bool OpenedWorld)
 {

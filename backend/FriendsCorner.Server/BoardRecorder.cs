@@ -1,7 +1,7 @@
-using DistanceTogether;
+using FriendsCorner;
 using Microsoft.Extensions.Hosting;
 
-namespace DistanceTogether.Server;
+namespace FriendsCorner.Server;
 
 public sealed class BoardRecorder
 {

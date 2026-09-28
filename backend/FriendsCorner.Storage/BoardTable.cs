@@ -1,7 +1,7 @@
-using DistanceTogether;
+using FriendsCorner;
 using Npgsql;
 
-namespace DistanceTogether.Storage;
+namespace FriendsCorner.Storage;
 
 public sealed class BoardTable
 {

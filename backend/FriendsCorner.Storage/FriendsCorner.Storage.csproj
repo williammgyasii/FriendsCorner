@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\DistanceTogether.Room\DistanceTogether.Room.csproj" />
+    <ProjectReference Include="..\FriendsCorner.Room\FriendsCorner.Room.csproj" />
   </ItemGroup>
 
   <ItemGroup>

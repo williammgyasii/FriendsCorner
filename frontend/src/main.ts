@@ -22,7 +22,7 @@ if (!roomId) {
 function renderStart(root: HTMLDivElement) {
   root.innerHTML = `
     <main class="door">
-      <p class="mark">DistanceTogether</p>
+      <p class="mark">Friends Corner</p>
       <h1>Open a lobby</h1>
       <p>Send the link. You both wait there, then one of you starts the world.</p>
       <button id="start" type="button">Open a lobby</button>
@@ -65,7 +65,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
         </div>
       </div>
       <section class="lobby" id="lobby">
-        <p class="mark">DistanceTogether</p>
+        <p class="mark">Friends Corner</p>
         <h1>Lobby</h1>
         <p class="status" id="status">Connecting…</p>
         <div class="games">

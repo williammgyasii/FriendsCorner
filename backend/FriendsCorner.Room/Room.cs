@@ -1,4 +1,4 @@
-namespace DistanceTogether;
+namespace FriendsCorner;
 
 public enum Seat
 {

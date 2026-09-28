@@ -1,6 +1,6 @@
-using DistanceTogether.Storage;
+using FriendsCorner.Storage;
 
-namespace DistanceTogether.Tests;
+namespace FriendsCorner.Tests;
 
 public class BoardTableTests
 {

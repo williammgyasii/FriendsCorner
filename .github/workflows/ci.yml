@@ -32,7 +32,7 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
-      - run: dotnet test backend/DistanceTogether.slnx
+      - run: dotnet test backend/FriendsCorner.slnx
       - name: Container image builds
         run: docker build --platform linux/amd64 backend
 

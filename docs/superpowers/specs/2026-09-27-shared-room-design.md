@@ -26,9 +26,9 @@ One git repository. Two processes in development.
 
 | Piece | Role |
 |---|---|
-| `backend/DistanceTogether.Room` | Rules. No sockets. The type is `DistanceTogether.Room`. |
-| `backend/DistanceTogether.Server` | ASP.NET Core on .NET 10. WebSocket endpoint and the 20 Hz clock. |
-| `backend/DistanceTogether.Room.Tests` | xUnit, namespace `DistanceTogether.Tests`. References the room library, not the server. |
+| `backend/FriendsCorner.Room` | Rules. No sockets. The type is `FriendsCorner.Room`. |
+| `backend/FriendsCorner.Server` | ASP.NET Core on .NET 10. WebSocket endpoint and the 20 Hz clock. |
+| `backend/FriendsCorner.Room.Tests` | xUnit, namespace `FriendsCorner.Tests`. References the room library, not the server. |
 | `frontend` | Vite and TypeScript. Canvas, keys, thumb, browser `WebSocket`. |
 
 The browser and the server do not share a type system. The direction message is a C# record and a TypeScript type, kept in sync by hand.

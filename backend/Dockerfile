@@ -5,15 +5,15 @@ FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG TARGETARCH
 WORKDIR /src
 
-COPY DistanceTogether.Room/DistanceTogether.Room.csproj DistanceTogether.Room/
-COPY DistanceTogether.Storage/DistanceTogether.Storage.csproj DistanceTogether.Storage/
-COPY DistanceTogether.Server/DistanceTogether.Server.csproj DistanceTogether.Server/
-RUN dotnet restore DistanceTogether.Server/DistanceTogether.Server.csproj -a $TARGETARCH
+COPY FriendsCorner.Room/FriendsCorner.Room.csproj FriendsCorner.Room/
+COPY FriendsCorner.Storage/FriendsCorner.Storage.csproj FriendsCorner.Storage/
+COPY FriendsCorner.Server/FriendsCorner.Server.csproj FriendsCorner.Server/
+RUN dotnet restore FriendsCorner.Server/FriendsCorner.Server.csproj -a $TARGETARCH
 
-COPY DistanceTogether.Room/ DistanceTogether.Room/
-COPY DistanceTogether.Storage/ DistanceTogether.Storage/
-COPY DistanceTogether.Server/ DistanceTogether.Server/
-RUN dotnet publish DistanceTogether.Server/DistanceTogether.Server.csproj -c Release -a $TARGETARCH --no-restore -o /app
+COPY FriendsCorner.Room/ FriendsCorner.Room/
+COPY FriendsCorner.Storage/ FriendsCorner.Storage/
+COPY FriendsCorner.Server/ FriendsCorner.Server/
+RUN dotnet publish FriendsCorner.Server/FriendsCorner.Server.csproj -c Release -a $TARGETARCH --no-restore -o /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
@@ -22,4 +22,4 @@ ENV ASPNETCORE_URLS=http://0.0.0.0:8080 \
     ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 8080
 USER $APP_UID
-ENTRYPOINT ["dotnet", "DistanceTogether.Server.dll"]
+ENTRYPOINT ["dotnet", "FriendsCorner.Server.dll"]

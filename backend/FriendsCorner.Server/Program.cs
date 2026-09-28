@@ -1,5 +1,5 @@
-using DistanceTogether.Server;
-using DistanceTogether.Storage;
+using FriendsCorner.Server;
+using FriendsCorner.Storage;
 
 LoadDotEnv();
 

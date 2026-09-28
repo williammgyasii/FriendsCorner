@@ -1,7 +1,7 @@
-using DistanceTogether;
-using DistanceTogether.Server;
+using FriendsCorner;
+using FriendsCorner.Server;
 
-namespace DistanceTogether.Tests;
+namespace FriendsCorner.Tests;
 
 public class BoardRecorderTests
 {

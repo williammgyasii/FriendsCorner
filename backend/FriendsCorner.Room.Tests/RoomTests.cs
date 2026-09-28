@@ -1,6 +1,6 @@
-using DistanceTogether;
+using FriendsCorner;
 
-namespace DistanceTogether.Tests;
+namespace FriendsCorner.Tests;
 
 public class RoomTests
 {

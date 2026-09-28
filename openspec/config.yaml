@@ -1,11 +1,11 @@
 schema: spec-driven
 
 context: |
-  DistanceTogether is a private room for two people in a long-distance relationship.
+  Friends Corner is a private room for two people in a long-distance relationship.
   The first slice is two characters moving in one room. One person starts and shares a link. A third person is refused.
   Monorepo. Backend is .NET 10 and ASP.NET Core's WebSocket, not SignalR.
-  Projects: DistanceTogether.Room (engine), DistanceTogether.Server (session and socket), DistanceTogether.Room.Tests (xUnit).
-  The room type is DistanceTogether.Room. Tests use the namespace DistanceTogether.Tests.
+  Projects: FriendsCorner.Room (engine), FriendsCorner.Server (session and socket), FriendsCorner.Room.Tests (xUnit).
+  The room type is FriendsCorner.Room. Tests use the namespace FriendsCorner.Tests.
   Frontend is Vite and TypeScript: a canvas, keyboard, and a thumb control, using the browser WebSocket.
   In development, Vite proxies the socket to Kestrel.
   Architecture is volatility decomposition and Clean Architecture. The engine has no sockets, web framework, or database. The session owns the clock and the sockets and calls Room.Tick.

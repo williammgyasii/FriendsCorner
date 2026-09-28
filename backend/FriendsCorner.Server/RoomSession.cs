@@ -1,10 +1,10 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using DistanceTogether;
-using DistanceTogether.Storage;
+using FriendsCorner;
+using FriendsCorner.Storage;
 
-namespace DistanceTogether.Server;
+namespace FriendsCorner.Server;
 
 public sealed class RoomRegistry
 {
