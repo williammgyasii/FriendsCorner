@@ -12,6 +12,7 @@ import {
   type ChessCard,
   type ChessState,
 } from './chessLook.ts'
+import type { ChessView } from './chessView3d.ts'
 import { loadIceServers } from './ice.ts'
 import { pickLayout } from './layout.ts'
 import { describeMarks, describePlayers, type PlayerCard } from './marksLook.ts'
@@ -177,8 +178,13 @@ function renderRoom(root: HTMLDivElement, id: string) {
             </div>
           </header>
           <div class="arena">
-            <div class="board chess-board">
+            <div class="board chess-board" id="chess-board">
               <div class="chess-grid" id="chess-grid"></div>
+              <p class="chess-credit">
+                Chess set: <a href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/ABeautifulGame" target="_blank" rel="noopener">A Beautiful Game</a>
+                by Moeen and Mujtaba Sayed,
+                <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>
+              </p>
               <div class="promotion" id="promotion" hidden>
                 <p>Your pawn made it across! Pick what it becomes.</p>
                 <div class="promotion-choices" id="promotion-choices"></div>
@@ -298,6 +304,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
     right: root.querySelector<HTMLDivElement>('#chess-card-right')!,
   }
   const chessStage = root.querySelector<HTMLDivElement>('#chess-stage')!
+  const chessBoard = root.querySelector<HTMLDivElement>('#chess-board')!
   const chessGrid = root.querySelector<HTMLDivElement>('#chess-grid')!
   const chessStatus = root.querySelector<HTMLParagraphElement>('#chess-status')!
   const chessHint = root.querySelector<HTMLParagraphElement>('#chess-hint')!
@@ -310,6 +317,28 @@ function renderRoom(root: HTMLDivElement, id: string) {
   let inspected: string | null = null
   let pendingPromotion: { from: string; to: string } | null = null
   let chessCelebrated = ''
+  let chessView: ChessView | null = null
+  let chessViewTried = false
+
+  const openChessView = () => {
+    chessViewTried = true
+    const fallBack = () => {
+      chessView?.dispose()
+      chessView = null
+      chessBoard.classList.remove('three')
+      renderChess()
+    }
+    import('./chessView3d.ts')
+      .then(({ mountChessView }) => mountChessView(chessBoard, chooseChessSquare, fallBack))
+      .then((view) => {
+        chessView = view
+        chessBoard.classList.add('three')
+        renderChess()
+      })
+      .catch((error: unknown) => {
+        console.warn('3D chess is unavailable; using the flat board.', error)
+      })
+  }
 
   const sendChessMove = (from: string, to: string, piece?: string) => {
     if (socket.readyState === WebSocket.OPEN) {
@@ -383,29 +412,45 @@ function renderRoom(root: HTMLDivElement, id: string) {
       chessHint.textContent = 'Tip: tap any piece to learn how it moves.'
     }
 
-    chessGrid.replaceChildren(
-      ...squaresInView(look.youAreWhite).map((square, index) => {
-        const button = document.createElement('button')
-        button.type = 'button'
-        const piece = pieces.get(square)
-        const file = square.charCodeAt(0) - 97
-        const rank = Number(square[1])
-        button.className = (file + rank) % 2 === 0 ? 'sq light' : 'sq dark'
-        button.classList.toggle('selected', square === selected)
-        button.classList.toggle('target', targets.includes(square))
-        button.classList.toggle('capture', targets.includes(square) && piece !== undefined)
-        button.classList.toggle('last', chess.lastMove?.from === square || chess.lastMove?.to === square)
-        button.classList.toggle('check', square === inCheck)
-        button.setAttribute('aria-label', piece ? `${square}, ${piece}` : square)
-        const labels = [
-          index % 8 === 0 ? `<span class="coord rank">${rank}</span>` : '',
-          index >= 56 ? `<span class="coord file">${square[0]}</span>` : '',
-        ].join('')
-        button.innerHTML = `${labels}${piece ? pieceHtml(piece) : ''}`
-        button.addEventListener('click', () => chooseChessSquare(square))
-        return button
-      }),
-    )
+    if (!chessViewTried) {
+      openChessView()
+    }
+
+    if (chessView) {
+      chessView.show({
+        pieces,
+        youAreWhite: look.youAreWhite,
+        selected,
+        targets,
+        lastMove: chess.lastMove,
+        check: inCheck,
+      })
+      chessGrid.replaceChildren()
+    } else {
+      chessGrid.replaceChildren(
+        ...squaresInView(look.youAreWhite).map((square, index) => {
+          const button = document.createElement('button')
+          button.type = 'button'
+          const piece = pieces.get(square)
+          const file = square.charCodeAt(0) - 97
+          const rank = Number(square[1])
+          button.className = (file + rank) % 2 === 0 ? 'sq light' : 'sq dark'
+          button.classList.toggle('selected', square === selected)
+          button.classList.toggle('target', targets.includes(square))
+          button.classList.toggle('capture', targets.includes(square) && piece !== undefined)
+          button.classList.toggle('last', chess.lastMove?.from === square || chess.lastMove?.to === square)
+          button.classList.toggle('check', square === inCheck)
+          button.setAttribute('aria-label', piece ? `${square}, ${piece}` : square)
+          const labels = [
+            index % 8 === 0 ? `<span class="coord rank">${rank}</span>` : '',
+            index >= 56 ? `<span class="coord file">${square[0]}</span>` : '',
+          ].join('')
+          button.innerHTML = `${labels}${piece ? pieceHtml(piece) : ''}`
+          button.addEventListener('click', () => chooseChessSquare(square))
+          return button
+        }),
+      )
+    }
 
     promotion.hidden = pendingPromotion === null
     promotionButtons.replaceChildren(
