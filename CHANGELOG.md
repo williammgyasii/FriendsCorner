@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## Unreleased
 
+## v0.1.2 — 2026-09-28
+
 ### Changed
 - Production ships when a GitHub Release is published, not when a tag is pushed. The Release notes come from this file.
 
