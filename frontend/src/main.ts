@@ -1,22 +1,28 @@
-import { FaceCall, type SignalPayload } from './faceCall.ts'
+import { FaceCall } from './faceCall.ts'
 import '@fontsource-variable/fredoka'
 import confetti from 'canvas-confetti'
-import {
-  checkedKing,
-  describeChess,
-  needsPromotion,
-  pieceHint,
-  piecesFrom,
-  squaresInView,
-  targetsFrom,
-  type ChessCard,
-  type ChessState,
-} from './chessLook.ts'
+import { pieceHint, squaresInView, type ChessCard, type Seat } from './chessLook.ts'
 import type { ChessView } from './chessView3d.ts'
-import { loadIceServers } from './ice.ts'
 import { pickLayout } from './layout.ts'
 import { describeMarks, describePlayers, type PlayerCard } from './marksLook.ts'
 import { placeFigures, wallHeight, type PlacedFigure } from './roomLook.ts'
+import { chooseChessSquare, choosePromotion } from './store/chessUiSlice.ts'
+import { makeStore, sendToRoom, type RoomMessageOut, type RootState } from './store/index.ts'
+import { iceServersFor, roomApi } from './store/roomApi.ts'
+import type { BoardState, RoomSnapshot } from './store/roomSlice.ts'
+import { openRoomSocket, type RoomSocket } from './store/roomSocket.ts'
+import {
+  selectBoard,
+  selectChess,
+  selectChessLook,
+  selectChessPicture,
+  selectConnection,
+  selectHere,
+  selectOtherHere,
+  selectSnapshot,
+  selectWorld,
+  selectYou,
+} from './store/selectors.ts'
 import './style.css'
 
 const app = document.querySelector<HTMLDivElement>('#app')
@@ -40,28 +46,16 @@ function renderStart(root: HTMLDivElement) {
       <button id="start" type="button">Open a lobby</button>
     </main>
   `
-  root.querySelector<HTMLButtonElement>('#start')?.addEventListener('click', async () => {
-    const response = await fetch('/rooms', { method: 'POST' })
-    const body = (await response.json()) as { id: string }
-    location.search = `?room=${body.id}`
+  const store = makeStore({ send: () => undefined })
+  const start = root.querySelector<HTMLButtonElement>('#start')!
+  start.addEventListener('click', async () => {
+    const result = await store.dispatch(roomApi.endpoints.createRoom.initiate())
+    if (result.data) {
+      location.search = `?room=${result.data}`
+    } else {
+      start.textContent = 'Could not open it. Try again'
+    }
   })
-}
-
-type Player = { x: number; y: number } | null
-type BoardState = {
-  squares: (string | null)[]
-  next: 'A' | 'B'
-  winner: 'A' | 'B' | null
-  draw: boolean
-}
-
-type StateMessage = {
-  type: 'state'
-  you: 'A' | 'B'
-  world: string | null
-  board: BoardState | null
-  chess: ChessState | null
-  players: { A: Player; B: Player }
 }
 
 const chessGlyph: Record<string, string> = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
@@ -228,20 +222,22 @@ function renderRoom(root: HTMLDivElement, id: string) {
     unavailable: 'Their camera is off',
     live: 'Them',
   }
-  const socket = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/${id}`)
+  let socket: RoomSocket | null = null
+  const store = makeStore({ send: (message) => socket?.send(message) })
+  const send = (message: RoomMessageOut) => store.dispatch(sendToRoom(message))
   const face = new FaceCall(
-    (payload) => {
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type: 'signal', payload }))
-      }
-    },
+    (payload) => send({ type: 'signal', payload }),
     video,
     (tile) => {
       portrait.className = `slot portrait ${tile}`
       faceNote.textContent = faceNotes[tile]
     },
-    () => loadIceServers(id),
+    () => store.dispatch(iceServersFor(id)),
   )
+  socket = openRoomSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/${id}`, {
+    dispatch: store.dispatch,
+    onSignal: (payload) => face.receive(payload),
+  })
   const cameraReady = navigator.mediaDevices
     .getUserMedia({ video: true, audio: true })
     .then((stream) => {
@@ -261,8 +257,8 @@ function renderRoom(root: HTMLDivElement, id: string) {
   })
   root.querySelector('#launch')?.addEventListener('click', () => {
     const selected = root.querySelector<HTMLButtonElement>('.game.selected')?.dataset.world ?? 'room'
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'launch', world: selected }))
+    if (selectConnection(store.getState()) === 'open') {
+      send({ type: 'launch', world: selected })
       const names: Record<string, string> = { tictactoe: 'Tic-tac-toe', chess: 'Chess', room: 'The Room' }
       status.textContent = `Opening ${names[selected] ?? 'The Room'}…`
     }
@@ -274,10 +270,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
     })
   })
 
-  let you: 'A' | 'B' = 'A'
-  let worldOpen = false
   let faceStarted = false
-  let boardKey = ''
   const held = new Set<string>()
   const grid = root.querySelector<HTMLDivElement>('#grid')!
   const marksBoard = root.querySelector<HTMLDivElement>('#marks-board')!
@@ -293,11 +286,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
   const localSlot = localVideo.parentElement as HTMLDivElement
   let previousSquares: (string | null)[] = []
   let celebratedKey = ''
-  rematch.addEventListener('click', () => {
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'rematch' }))
-    }
-  })
+  rematch.addEventListener('click', () => send({ type: 'rematch' }))
 
   const chessCards = {
     left: root.querySelector<HTMLDivElement>('#chess-card-left')!,
@@ -311,11 +300,6 @@ function renderRoom(root: HTMLDivElement, id: string) {
   const chessRematch = root.querySelector<HTMLButtonElement>('#chess-rematch')!
   const promotion = root.querySelector<HTMLDivElement>('#promotion')!
   const promotionButtons = root.querySelector<HTMLDivElement>('#promotion-choices')!
-  let chessState: ChessState | null = null
-  let chessHere = { A: false, B: false }
-  let selected: string | null = null
-  let inspected: string | null = null
-  let pendingPromotion: { from: string; to: string } | null = null
   let chessCelebrated = ''
   let chessView: ChessView | null = null
   let chessViewTried = false
@@ -329,7 +313,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
       renderChess()
     }
     import('./chessView3d.ts')
-      .then(({ mountChessView }) => mountChessView(chessBoard, chooseChessSquare, fallBack))
+      .then(({ mountChessView }) => mountChessView(chessBoard, tapSquare, fallBack))
       .then((view) => {
         chessView = view
         chessBoard.classList.add('three')
@@ -340,17 +324,9 @@ function renderRoom(root: HTMLDivElement, id: string) {
       })
   }
 
-  const sendChessMove = (from: string, to: string, piece?: string) => {
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'chess-move', from, to, ...(piece ? { promotion: piece } : {}) }))
-    }
-  }
+  const tapSquare = (square: string) => store.dispatch(chooseChessSquare(square))
 
-  chessRematch.addEventListener('click', () => {
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'chess-rematch' }))
-    }
-  })
+  chessRematch.addEventListener('click', () => send({ type: 'chess-rematch' }))
 
   const paintChessCard = (element: HTMLDivElement, card: ChessCard) => {
     element.style.setProperty('--seat', card.color)
@@ -361,40 +337,16 @@ function renderRoom(root: HTMLDivElement, id: string) {
     element.querySelector('.player-note')!.textContent = card.note
   }
 
-  const chooseChessSquare = (square: string) => {
-    if (!chessState) {
-      return
-    }
-    const look = describeChess(chessState, you, chessHere)
-    const pieces = piecesFrom(chessState.fen)
-    const piece = pieces.get(square)
-    if (selected && look.canMove && targetsFrom(chessState.legalMoves, selected).includes(square)) {
-      if (needsPromotion(chessState.legalMoves, selected, square)) {
-        pendingPromotion = { from: selected, to: square }
-      } else {
-        sendChessMove(selected, square)
-      }
-      selected = null
-      inspected = null
-      renderChess()
-      return
-    }
-
-    inspected = piece ?? null
-    const mine = piece !== undefined && (piece === piece.toUpperCase()) === look.youAreWhite
-    selected = look.canMove && mine && selected !== square ? square : null
-    renderChess()
-  }
-
   const renderChess = () => {
-    if (!chessState) {
+    const state = store.getState()
+    const chess = selectChess(state)
+    const look = selectChessLook(state)
+    const picture = selectChessPicture(state)
+    if (!chess || !look || !picture) {
       return
     }
-    const chess = chessState
-    const look = describeChess(chess, you, chessHere)
-    const pieces = piecesFrom(chess.fen)
-    const targets = selected ? targetsFrom(chess.legalMoves, selected) : []
-    const inCheck = checkedKing(chess)
+    const { inspected, pendingPromotion } = state.chessUi
+    const { pieces, selected, targets, check: inCheck } = picture
 
     chessStage.classList.toggle('celebrating', look.celebrate !== null)
     screen.style.setProperty('--turn', look.color)
@@ -417,14 +369,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
     }
 
     if (chessView) {
-      chessView.show({
-        pieces,
-        youAreWhite: look.youAreWhite,
-        selected,
-        targets,
-        lastMove: chess.lastMove,
-        check: inCheck,
-      })
+      chessView.show(picture)
       chessGrid.replaceChildren()
     } else {
       chessGrid.replaceChildren(
@@ -446,7 +391,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
             index >= 56 ? `<span class="coord file">${square[0]}</span>` : '',
           ].join('')
           button.innerHTML = `${labels}${piece ? pieceHtml(piece) : ''}`
-          button.addEventListener('click', () => chooseChessSquare(square))
+          button.addEventListener('click', () => tapSquare(square))
           return button
         }),
       )
@@ -458,13 +403,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
         const button = document.createElement('button')
         button.type = 'button'
         button.innerHTML = `${pieceHtml(look.youAreWhite ? piece.toUpperCase() : piece)}<span>${name}</span>`
-        button.addEventListener('click', () => {
-          if (pendingPromotion) {
-            sendChessMove(pendingPromotion.from, pendingPromotion.to, piece)
-          }
-          pendingPromotion = null
-          renderChess()
-        })
+        button.addEventListener('click', () => store.dispatch(choosePromotion(piece)))
         return button
       }),
     )
@@ -480,7 +419,6 @@ function renderRoom(root: HTMLDivElement, id: string) {
   }
 
   const showWorld = (world: string | null) => {
-    worldOpen = world === 'room'
     screen.classList.remove('world-room', 'world-game', 'world-tictactoe', 'world-chess')
     if (world === 'room') {
       screen.classList.add('world-room')
@@ -513,7 +451,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
     element.querySelector('.player-note')!.textContent = card.note
   }
 
-  const renderMarks = (board: BoardState, here: { A: boolean; B: boolean }) => {
+  const renderMarks = (board: BoardState, here: { A: boolean; B: boolean }, you: Seat) => {
     const look = describeMarks(board, you)
     const players = describePlayers(board, you, here)
     marksBoard.classList.toggle('celebrating', look.celebrate !== null)
@@ -535,11 +473,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
         }
         button.classList.toggle('won', look.winning.includes(index))
         button.disabled = look.canRematch || mark !== null || board.next !== you
-        button.addEventListener('click', () => {
-          if (socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({ type: 'place', square: index }))
-          }
-        })
+        button.addEventListener('click', () => send({ type: 'place', square: index }))
         return button
       }),
     )
@@ -562,7 +496,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
     }
   }
 
-  const beginFace = () => {
+  const beginFace = (you: Seat) => {
     if (faceStarted) {
       return
     }
@@ -570,69 +504,72 @@ function renderRoom(root: HTMLDivElement, id: string) {
     void cameraReady.then((stream) => face.start(you, stream))
   }
 
-  socket.addEventListener('message', (event) => {
-    const message = JSON.parse(String(event.data)) as { type: string; seat?: 'A' | 'B' }
-    if (message.type === 'joined' && message.seat) {
-      you = message.seat
-      status.textContent = 'You are in the lobby. Share the invite.'
+  const connectionWords = {
+    connecting: 'Connecting…',
+    open: 'You are in the lobby. Share the invite.',
+    full: 'This room is full.',
+    gone: 'This room is gone.',
+  }
+
+  // Each view repaints only when the slice of state it reads is a new object.
+  let seen: RootState | null = null
+  let seenBoardInputs: unknown[] = []
+  let seenChessInputs: unknown[] = []
+  const changed = (before: unknown[], after: unknown[]) => after.some((value, index) => value !== before[index])
+
+  const render = () => {
+    const state = store.getState()
+    const before = seen
+    seen = state
+    const connection = selectConnection(state)
+    if (!before || connection !== selectConnection(before)) {
+      status.textContent = connectionWords[connection]
+      if (connection === 'full' || connection === 'gone') {
+        face.stop()
+      }
+    }
+
+    const snapshot = selectSnapshot(state)
+    if (!snapshot) {
       return
     }
-
-    if (message.type === 'signal') {
-      face.receive((message as unknown as { payload: SignalPayload }).payload)
-      return
+    const you = selectYou(state)
+    const world = selectWorld(state)
+    const here = selectHere(state)
+    if (snapshot !== before?.room.snapshot) {
+      draw(context, snapshot)
+      showWorld(world)
     }
 
-    if (message.type === 'state') {
-      const state = message as StateMessage
-      you = state.you
-      draw(context, state)
-      showWorld(state.world)
-      if (state.world === 'tictactoe' && state.board) {
-        const here = { A: state.players.A !== null, B: state.players.B !== null }
-        const key = JSON.stringify({ board: state.board, here })
-        if (key !== boardKey) {
-          boardKey = key
-          renderMarks(state.board, here)
-        }
-      }
-      if (state.world === 'chess' && state.chess) {
-        const here = { A: state.players.A !== null, B: state.players.B !== null }
-        const key = JSON.stringify({ chess: state.chess, here, you })
-        if (key !== boardKey) {
-          boardKey = key
-          if (chessState?.fen !== state.chess.fen) {
-            selected = null
-            pendingPromotion = null
-          }
-          chessState = state.chess
-          chessHere = here
-          renderChess()
-        }
-      }
-      const other = you === 'A' ? state.players.B : state.players.A
-      if (other) {
-        if (!state.world) {
-          status.textContent = 'You are both here. Pick a game and start.'
-        }
-        beginFace()
-      } else if (faceStarted) {
-        faceStarted = false
-        face.otherLeft()
-      }
+    const board = selectBoard(state)
+    const boardInputs = [board, here, you]
+    if (world === 'tictactoe' && board && changed(seenBoardInputs, boardInputs)) {
+      seenBoardInputs = boardInputs
+      renderMarks(board, here, you)
     }
-  })
 
-  socket.addEventListener('close', (event) => {
-    face.stop()
-    status.textContent = event.reason === 'room is full' ? 'This room is full.' : 'This room is gone.'
-  })
+    const chessInputs = [selectChessPicture(state), selectChessLook(state), state.chessUi]
+    if (world === 'chess' && selectChess(state) && changed(seenChessInputs, chessInputs)) {
+      seenChessInputs = chessInputs
+      renderChess()
+    }
 
-  const sendDirection = (x: number, y: number) => {
-    if (socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: 'direction', x, y }))
+    const otherHere = selectOtherHere(state)
+    if (otherHere) {
+      if (!world && (!before || !selectOtherHere(before) || selectWorld(before))) {
+        status.textContent = 'You are both here. Pick a game and start.'
+      }
+      beginFace(you)
+    } else if (faceStarted) {
+      faceStarted = false
+      face.otherLeft()
     }
   }
+  store.subscribe(render)
+  render()
+
+  const worldOpen = () => selectWorld(store.getState()) === 'room'
+  const sendDirection = (x: number, y: number) => send({ type: 'direction', x, y })
 
   window.addEventListener('pointerdown', () => {
     void video.play().catch(() => undefined)
@@ -640,7 +577,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
 
   window.addEventListener('keydown', (event) => {
     void video.play().catch(() => undefined)
-    if (!worldOpen || !isMoveKey(event.key)) {
+    if (!worldOpen() || !isMoveKey(event.key)) {
       return
     }
     event.preventDefault()
@@ -650,7 +587,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
   })
 
   window.addEventListener('keyup', (event) => {
-    if (!worldOpen) {
+    if (!worldOpen()) {
       held.delete(event.key)
       return
     }
@@ -674,7 +611,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
   pad.addEventListener('pointercancel', releasePad)
 }
 
-function draw(context: CanvasRenderingContext2D, state: StateMessage) {
+function draw(context: CanvasRenderingContext2D, state: RoomSnapshot) {
   context.clearRect(0, 0, 480, 320)
   paintRoom(context)
 
