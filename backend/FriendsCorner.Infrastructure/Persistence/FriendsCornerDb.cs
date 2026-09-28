@@ -6,6 +6,7 @@ public sealed class FriendsCornerDb(DbContextOptions<FriendsCornerDb> options) :
 {
     public DbSet<TicTacToeRow> TicTacToe => Set<TicTacToeRow>();
     public DbSet<ChessRow> Chess => Set<ChessRow>();
+    public DbSet<LetterTilesRow> LetterTiles => Set<LetterTilesRow>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -25,6 +26,14 @@ public sealed class FriendsCornerDb(DbContextOptions<FriendsCornerDb> options) :
             row.Property(r => r.RoomId).HasColumnName("room_id");
             row.Property(r => r.Fen).HasColumnName("fen");
             row.Property(r => r.WhiteSeat).HasColumnName("white_seat");
+        });
+
+        model.Entity<LetterTilesRow>(row =>
+        {
+            row.ToTable("letter_tiles");
+            row.HasKey(r => r.RoomId);
+            row.Property(r => r.RoomId).HasColumnName("room_id");
+            row.Property(r => r.State).HasColumnName("state").HasColumnType("jsonb");
         });
     }
 }

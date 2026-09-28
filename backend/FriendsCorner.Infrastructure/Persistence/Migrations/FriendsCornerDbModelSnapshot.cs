@@ -16,7 +16,7 @@ namespace FriendsCorner.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -40,6 +40,22 @@ namespace FriendsCorner.Infrastructure.Persistence.Migrations
                     b.HasKey("RoomId");
 
                     b.ToTable("chess", (string)null);
+                });
+
+            modelBuilder.Entity("FriendsCorner.Infrastructure.Persistence.LetterTilesRow", b =>
+                {
+                    b.Property<string>("RoomId")
+                        .HasColumnType("text")
+                        .HasColumnName("room_id");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("state");
+
+                    b.HasKey("RoomId");
+
+                    b.ToTable("letter_tiles", (string)null);
                 });
 
             modelBuilder.Entity("FriendsCorner.Infrastructure.Persistence.TicTacToeRow", b =>

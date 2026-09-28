@@ -1,5 +1,7 @@
 using FriendsCorner.Core.Accessors;
 using FriendsCorner.Core.Engines;
+using FriendsCorner.Core.Engines.Games;
+using FriendsCorner.Core.Engines.LetterTiles;
 using System.Text.Json;
 
 namespace FriendsCorner.Infrastructure.Accessors;
@@ -25,16 +27,16 @@ public sealed class StateMessageAccessor : IStateMessageAccessor
             type = "state",
             you = you.ToString(),
             world = room.World,
-            board = room.TicTacToe is null
+            board = room.Game is not TicTacToeGame { Board: var board }
                 ? null
                 : new
                 {
-                    squares = room.TicTacToe.Squares.Select(square => square?.ToString()).ToArray(),
-                    next = room.TicTacToe.Next.ToString(),
-                    winner = room.TicTacToe.Winner?.ToString(),
-                    draw = room.TicTacToe.IsDraw,
+                    squares = board.Squares.Select(square => square?.ToString()).ToArray(),
+                    next = board.Next.ToString(),
+                    winner = board.Winner?.ToString(),
+                    draw = board.IsDraw,
                 },
-            chess = room.Chess is not { } chess
+            chess = room.Game is not ChessGame { Board: var chess }
                 ? null
                 : new
                 {
@@ -54,6 +56,7 @@ public sealed class StateMessageAccessor : IStateMessageAccessor
                         .Select(move => new { from = move.From, to = move.To, promotion = move.Promotion?.ToString() })
                         .ToArray(),
                 },
+            tiles = room.Game is LetterTilesGame tiles ? Tiles(tiles, you) : null,
             players = new { A = Player(Seat.A), B = Player(Seat.B), C = Player(Seat.C), D = Player(Seat.D) },
             lobby = new
             {
@@ -75,4 +78,81 @@ public sealed class StateMessageAccessor : IStateMessageAccessor
             },
         });
     }
+
+    private static readonly Dictionary<string, int> LetterValues =
+        Enumerable.Range('A', 26)
+            .Select(letter => new Tile((char)letter))
+            .Append(Tile.Blank)
+            .ToDictionary(tile => tile.Letter.ToString(), TileSet.ValueOf);
+
+    // Built for one seat: its own rack, and only counts for everyone else.
+    // The bag goes out as a number so its order never leaves the server.
+    private static object Tiles(LetterTilesGame game, Seat you)
+    {
+        var state = game.State;
+        return new
+        {
+            layout = PremiumLayout.Text,
+            board = state.Board
+                .Select(tile => tile is { } placed ? (placed.IsBlank ? char.ToLowerInvariant(placed.Letter) : placed.Letter).ToString() : null)
+                .ToArray(),
+            values = LetterValues,
+            players = state.Playing
+                .Select(seat => new { seat = seat.ToString(), score = state.Scores[seat], count = state.Racks[seat].Count })
+                .ToArray(),
+            toMove = state.ToMove.ToString(),
+            bag = state.Bag.Count,
+            rack = state.Racks.TryGetValue(you, out var rack)
+                ? rack.Select(tile => tile.Letter.ToString()).ToArray()
+                : [],
+            lastPlay = state.LastPlay is { } last
+                ? new { seat = last.Seat.ToString(), words = last.Words, score = last.Score }
+                : null,
+            outcome = state.Outcome is { } outcome
+                ? new
+                {
+                    winners = outcome.Winners.Select(seat => seat.ToString()).ToArray(),
+                    scores = state.Playing.ToDictionary(seat => seat.ToString(), seat => state.Scores[seat]),
+                }
+                : null,
+            refusal = game.RefusalFor(you) is { } refusal
+                ? new { reason = ReasonCode(refusal.Reason), words = refusal.Words }
+                : null,
+        };
+    }
+
+    public string? Answer(GameAnswer answer) => answer switch
+    {
+        TilesPreview preview => JsonSerializer.Serialize(new
+        {
+            type = "tiles-preview",
+            tiles = Asked(preview.Tiles),
+            words = preview.Words,
+            score = preview.Score,
+        }),
+        TilesPreviewRefused refused => JsonSerializer.Serialize(new
+        {
+            type = "tiles-preview",
+            tiles = Asked(refused.Tiles),
+            refusal = new { reason = ReasonCode(refused.Refusal.Reason), words = refused.Refusal.Words },
+        }),
+        _ => null,
+    };
+
+    private static object[] Asked(IReadOnlyList<PlacedTile> tiles) =>
+        tiles.Select(tile => (object)new { square = tile.Square, letter = tile.Tile.Letter.ToString(), blank = tile.Tile.IsBlank }).ToArray();
+
+    private static string ReasonCode(RefusalReason reason) => reason switch
+    {
+        RefusalReason.NotYourTurn => "not-your-turn",
+        RefusalReason.NotInRack => "not-in-rack",
+        RefusalReason.NotInLine => "not-in-line",
+        RefusalReason.Gap => "gap",
+        RefusalReason.FirstMustCoverCentre => "first-must-cover-centre",
+        RefusalReason.FirstNeedsTwoTiles => "first-needs-two-tiles",
+        RefusalReason.NotConnected => "not-connected",
+        RefusalReason.NotAWord => "not-a-word",
+        RefusalReason.BagTooSmall => "bag-too-small",
+        _ => "game-over",
+    };
 }

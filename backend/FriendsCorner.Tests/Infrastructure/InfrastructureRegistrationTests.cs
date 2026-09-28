@@ -62,6 +62,26 @@ public class InfrastructureRegistrationTests
     }
 
     [Fact]
+    public void The_word_list_is_loaded_once_for_the_whole_app()
+    {
+        using var provider = Build();
+
+        Assert.Same(provider.GetRequiredService<IWordListAccessor>(), provider.GetRequiredService<IWordListAccessor>());
+    }
+
+    [Fact]
+    public void A_room_from_the_container_can_start_letter_tiles()
+    {
+        using var provider = Build();
+        var room = provider.GetRequiredService<RoomEngine>();
+        Assert.True(room.TryAddSeat(out _));
+        Assert.True(room.TryAddSeat(out _));
+
+        Assert.True(room.TryLaunch(LetterTilesGame.GameId));
+        Assert.IsType<LetterTilesGame>(room.Game);
+    }
+
+    [Fact]
     public void The_singleton_tables_get_a_context_factory_not_a_captured_context()
     {
         using var provider = Build();

@@ -1,15 +1,14 @@
 using System.Net.WebSockets;
 using FriendsCorner.Core.Accessors;
 using FriendsCorner.Core.Engines;
+using FriendsCorner.Core.Engines.Games;
 using FriendsCorner.Core.Utilities;
 
 namespace FriendsCorner.Core.Managers;
 
 public interface IRoomManager
 {
-    void RestoreTicTacToe(Board board);
-
-    void RestoreChess(ChessBoard board);
+    void Restore(IGameEngine game);
 
     Task<Seat?> Join(WebSocket socket, CancellationToken cancellationToken);
 
@@ -33,8 +32,7 @@ public sealed class RoomManager : IRoomManager
     private readonly ISeatSocketAccessor _sockets;
     private readonly ITickerUtility _clock;
     private readonly IStateMessageAccessor _state;
-    private readonly IBoardRecorderAccessor _boards;
-    private readonly IChessRecorderAccessor _chess;
+     private readonly IGameRecorderAccessor _games;
     private readonly TimeProvider _time;
 
     public RoomManager(
@@ -44,8 +42,7 @@ public sealed class RoomManager : IRoomManager
         ISeatSocketAccessor sockets,
         ITickerUtility clock,
         IStateMessageAccessor state,
-        IBoardRecorderAccessor boards,
-        IChessRecorderAccessor chess,
+        IGameRecorderAccessor games,
         TimeProvider time)
     {
         _roomId = roomId;
@@ -54,14 +51,17 @@ public sealed class RoomManager : IRoomManager
         _sockets = sockets;
         _clock = clock;
         _state = state;
-        _boards = boards;
-        _chess = chess;
+        _games = games;
         _time = time;
     }
 
-    public void RestoreTicTacToe(Board board) => _room.RestoreTicTacToe(board);
-
-    public void RestoreChess(ChessBoard board) => _room.RestoreChess(board);
+    public void Restore(IGameEngine game)
+    {
+        lock (_gate)
+        {
+            _room.Restore(game);
+        }
+    }
 
     public async Task<Seat?> Join(WebSocket socket, CancellationToken cancellationToken)
     {
@@ -84,6 +84,12 @@ public sealed class RoomManager : IRoomManager
 
     public async Task Act(Seat seat, RoomCommand command, CancellationToken cancellationToken)
     {
+        if (command is GameQuestion question)
+        {
+            await Answer(seat, question, cancellationToken);
+            return;
+        }
+
         RoomChange change;
         lock (_gate)
         {
@@ -95,6 +101,18 @@ public sealed class RoomManager : IRoomManager
         {
             await Broadcast(cancellationToken);
         }
+    }
+
+    // A question changes nothing, so it is neither recorded nor broadcast.
+    private Task Answer(Seat seat, GameQuestion question, CancellationToken cancellationToken)
+    {
+        string? json;
+        lock (_gate)
+        {
+            json = _room.Ask(seat, question) is { } answer ? _state.Answer(answer) : null;
+        }
+
+        return json is null ? Task.CompletedTask : _sockets.Send(seat, json, cancellationToken);
     }
 
     public Task Relay(Seat from, string json, CancellationToken cancellationToken) =>
@@ -134,14 +152,9 @@ public sealed class RoomManager : IRoomManager
     // Call inside the gate so the board noted is the one the change made.
     private void Record(RoomChange change)
     {
-        if (change.HasFlag(RoomChange.TicTacToe) && _room.TicTacToe is { } board)
+        if (change.HasFlag(RoomChange.Game) && _room.Game is { } game)
         {
-            _boards.Note(_roomId, board);
-        }
-
-        if (change.HasFlag(RoomChange.Chess) && _room.Chess is { } chess)
-        {
-            _chess.Note(_roomId, chess);
+            _games.Note(_roomId, game);
         }
     }
 

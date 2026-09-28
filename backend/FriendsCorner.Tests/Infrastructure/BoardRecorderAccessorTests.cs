@@ -59,10 +59,10 @@ public class BoardRecorderAccessorTests
         Assert.True(room.TryLaunch("tictactoe"));
         foreach (var square in squares)
         {
-            var seat = room.TicTacToe!.Next;
-            Assert.True(room.TryPlace(seat, square));
+            var seat = room.RunningTicTacToe().Next;
+            Assert.True(room.Game!.TryPlay(seat, new Place(square)));
         }
 
-        return room.TicTacToe!;
+        return room.RunningTicTacToe();
     }
 }

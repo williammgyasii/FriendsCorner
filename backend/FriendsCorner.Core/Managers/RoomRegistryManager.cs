@@ -1,5 +1,4 @@
 using FriendsCorner.Core.Accessors;
-using FriendsCorner.Core.Engines;
 
 namespace FriendsCorner.Core.Managers;
 
@@ -17,14 +16,12 @@ public sealed class RoomRegistryManager : IRoomRegistryManager
 {
     private readonly Dictionary<string, IRoomManager> _rooms = new();
     private readonly Lock _gate = new();
-    private readonly IBoardTableAccessor _boardTable;
-    private readonly IChessTableAccessor _chessTable;
+    private readonly IGameTableAccessor _games;
     private readonly IRoomManagerFactory _factory;
 
-    public RoomRegistryManager(IBoardTableAccessor boardTable, IChessTableAccessor chessTable, IRoomManagerFactory factory)
+    public RoomRegistryManager(IGameTableAccessor games, IRoomManagerFactory factory)
     {
-        _boardTable = boardTable;
-        _chessTable = chessTable;
+        _games = games;
         _factory = factory;
     }
 
@@ -57,9 +54,7 @@ public sealed class RoomRegistryManager : IRoomRegistryManager
             }
         }
 
-        var board = await _boardTable.Load(id);
-        var chess = board is null ? await _chessTable.Load(id) : null;
-        if (board is null && chess is null)
+        if (await _games.Load(id) is not { } game)
         {
             return null;
         }
@@ -72,14 +67,7 @@ public sealed class RoomRegistryManager : IRoomRegistryManager
             }
 
             var room = NewRoom(id);
-            if (board is not null)
-            {
-                room.RestoreTicTacToe(board);
-            }
-            else
-            {
-                room.RestoreChess(chess!);
-            }
+            room.Restore(game);
 
             _rooms[id] = room;
             return room;

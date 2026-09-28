@@ -30,6 +30,7 @@ export const gameCards: GameCard[] = [
   { id: 'room', name: 'The Room', blurb: 'A floor, a window, and everyone together.', players: '2–4 players' },
   { id: 'tictactoe', name: 'Tic-tac-toe', blurb: 'Nine squares. Three in a row wins.', players: '2 players' },
   { id: 'chess', name: 'Chess', blurb: 'The classic, in 3D. Tap a piece to see its moves.', players: '2 players' },
+  { id: 'tiles', name: 'Letter Tiles', blurb: 'Build words on one shared board. Only you see your tiles.', players: '2–4 players' },
 ]
 
 export type Slot =

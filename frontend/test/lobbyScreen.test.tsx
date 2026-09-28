@@ -53,6 +53,16 @@ test('the game master is crowned and picks a game from the grid', async () => {
   expect(sent).toContainEqual({ type: 'pick', game: 'chess' })
 })
 
+test('the game master can pick Letter Tiles for up to four', async () => {
+  const { sent } = show('A')
+
+  const card = screen.getByRole('button', { name: /Letter Tiles/ })
+  expect(card).toHaveTextContent('2–4 players')
+  await userEvent.click(card)
+
+  expect(sent).toContainEqual({ type: 'pick', game: 'tiles' })
+})
+
 test('a joining player sees the games but cannot pick one', () => {
   show('B')
 
