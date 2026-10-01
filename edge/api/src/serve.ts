@@ -1,9 +1,10 @@
 import { getContainer } from '@cloudflare/containers'
+import type { RoomApi } from './index.ts'
 import { gateRateLimit, type RateLimitEnv } from './rateLimit.ts'
 import { apiRouteFor } from './route.ts'
 
 type ApiEnv = RateLimitEnv & {
-  ROOM_API: DurableObjectNamespace
+  ROOM_API: DurableObjectNamespace<RoomApi>
   TURN_KEY_ID: string
   TURN_KEY_API_TOKEN: string
 }
