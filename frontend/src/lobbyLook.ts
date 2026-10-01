@@ -92,7 +92,7 @@ export function describeLobby(lobby: LobbyState, you: RoomSeat): LobbyView {
   const pick = gameCards.find((game) => game.id === lobby.pick) ?? null
   const me = lobby.members.find((member) => member.seat === you)
 
-  const members: Slot[] = lobby.members.map((member, index) => ({
+  const members: Slot[] = lobby.members.map((member) => ({
     kind: 'member',
     seat: member.seat,
     label: member.gameName,
