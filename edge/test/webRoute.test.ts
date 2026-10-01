@@ -4,6 +4,9 @@ import { webRouteFor } from '../web/src/route.ts'
 
 test('lobby, room sockets, and ICE credentials are handed to the API Worker', () => {
   assert.equal(webRouteFor('/rooms'), 'api')
+  assert.equal(webRouteFor('/account'), 'api')
+  assert.equal(webRouteFor('/billing'), 'api')
+  assert.equal(webRouteFor('/billing/webhook'), 'api')
   assert.equal(webRouteFor('/ws/4d6e61013c5946969d9b359440c7f5ee'), 'api')
   assert.equal(webRouteFor('/turn'), 'api')
 })

@@ -1,5 +1,9 @@
+import { doorLook, type DoorField, type DoorView } from './doorLook.ts'
+import { homeLook, signedInScreen, type HomeView } from './homeLook.ts'
+import { mountHome } from './home/mount.tsx'
 import { FaceCall } from './faceCall.ts'
 import '@fontsource-variable/fredoka'
+import '@fontsource/bungee'
 import confetti from 'canvas-confetti'
 import { pieceHint, squaresInView, type ChessCard, type Seat } from './chessLook.ts'
 import { pickLayout } from './layout.ts'
@@ -8,12 +12,15 @@ import { describeMarks, describePlayers, type PlayerCard } from './marksLook.ts'
 import { placeFigures, wallHeight, type PlacedFigure } from './roomLook.ts'
 import { createFaces } from './faces.ts'
 import { mountLobby } from './lobby/mount.tsx'
+import { mountMystery } from './mystery/mount.tsx'
 import { mountTiles } from './tiles/mount.tsx'
 import { faceHosts } from './faceHosts.ts'
 import { chooseChessSquare, choosePromotion } from './store/chessUiSlice.ts'
 import { setMedia } from './store/devicesSlice.ts'
-import { makeStore, sendToRoom, type RoomMessageOut, type RootState } from './store/index.ts'
-import { iceServersFor, roomApi } from './store/roomApi.ts'
+import { makeStore, sendToRoom, type AppStore, type RoomMessageOut, type RootState } from './store/index.ts'
+import { authApi } from './store/authApi.ts'
+import { billingApi } from './store/billingApi.ts'
+import { iceServersFor } from './store/roomApi.ts'
 import type { BoardState, RoomSnapshot } from './store/roomSlice.ts'
 import { openRoomSocket, type RoomSocket } from './store/roomSocket.ts'
 import {
@@ -36,32 +43,164 @@ if (!app) {
   throw new Error('Missing #app')
 }
 
-const roomId = new URLSearchParams(location.search).get('room')
-if (!roomId) {
-  renderStart(app)
-} else {
-  renderRoom(app, roomId)
+let doorStore: AppStore | null = null
+
+function sessionStore() {
+  return (doorStore ??= makeStore({ send: () => undefined }))
 }
 
-function renderStart(root: HTMLDivElement) {
+void boot(app)
+
+async function boot(root: HTMLDivElement) {
+  const store = sessionStore()
+  const params = new URLSearchParams(location.search)
+  const sessionId = params.get('session_id')
+  if (sessionId) {
+    await store.dispatch(billingApi.endpoints.confirmCheckout.initiate({ sessionId }))
+    params.delete('session_id')
+    const rest = params.toString()
+    history.replaceState({}, '', rest ? `${location.pathname}?${rest}` : location.pathname)
+  }
+  await store.dispatch(authApi.endpoints.account.initiate(undefined, { subscribe: false, forceRefetch: true }))
+  const body = store.getState().auth.account
+  const view = doorLook(location.pathname, location.search, body !== null)
+  if (view.kind === 'redirect') {
+    location.assign(view.to)
+    return
+  }
+  if (view.kind === 'enter') {
+    renderRoom(root, view.room)
+    return
+  }
+  if (view.kind === 'login' || view.kind === 'register') {
+    renderDoor(root, view, params.get('room'))
+    return
+  }
+
+  const screen = signedInScreen(body?.gameName ?? '', body?.plan ?? null, params.get('plan'))
+  if (screen.kind === 'checkout') {
+    await startBilling(root, 'checkout', screen.plan, homeLook(body?.gameName ?? '', body?.plan ?? null), body?.email ?? '')
+    return
+  }
+  renderHome(root, screen, body?.email ?? '')
+}
+
+let unmountHome: (() => void) | null = null
+
+function renderHome(root: HTMLDivElement, view: HomeView, email: string) {
+  unmountHome?.()
+  root.replaceChildren()
+  const host = document.createElement('div')
+  root.append(host)
+  unmountHome = mountHome(host, view, email, sessionStore())
+}
+
+async function startBilling(
+  root: HTMLDivElement,
+  action: 'checkout' | 'portal',
+  plan: string | null,
+  home: HomeView,
+  email: string,
+) {
+  const result = await sessionStore().dispatch(billingApi.endpoints.startBilling.initiate({ action, plan }))
+  if (!result.data) {
+    renderHome(root, home, email)
+    return
+  }
+  location.assign(result.data.url)
+}
+
+function renderDoor(root: HTMLDivElement, view: Extract<DoorView, { kind: 'login' | 'register' }>, room: string | null) {
+  const labels: Record<DoorField, string> = {
+    name: 'Name',
+    gameName: 'Game name',
+    email: 'Email',
+    password: 'Password',
+  }
+  const types: Record<DoorField, string> = {
+    name: 'text',
+    gameName: 'text',
+    email: 'email',
+    password: 'password',
+  }
+  const fields = view.fields
+    .map(
+      (field) =>
+        `<label>${labels[field]} <input name="${field}" type="${types[field]}" ${field === 'email' ? 'autocomplete="username"' : ''} ${field === 'password' ? `autocomplete="${view.kind === 'login' ? 'current-password' : 'new-password'}"` : ''} required></label>`,
+    )
+    .join('')
+  const link = room ? `${view.link.href}?room=${encodeURIComponent(room)}` : view.link.href
+
   root.innerHTML = `
-    <main class="door">
-      <p class="mark">Friends Corner</p>
-      <h1>Open a lobby</h1>
-      <p>Send the link. You both wait there, then one of you starts the world.</p>
-      <button id="start" type="button">Open a lobby</button>
+    <main class="door arcade">
+      <div class="arcade-grid"></div>
+      <div class="arcade-orb a"></div>
+      <div class="arcade-orb b"></div>
+      <form id="door-form" class="arcade-card">
+        <p class="mark">Friends Corner</p>
+        <h1>${view.title}</h1>
+        ${fields}
+        <div class="door-actions">
+          <button id="sign-in" type="submit">${view.action}</button>
+        </div>
+        <a class="arcade-link" href="${link}">${view.link.label}</a>
+      </form>
+      <p id="door-note"></p>
     </main>
   `
-  const store = makeStore({ send: () => undefined })
-  const start = root.querySelector<HTMLButtonElement>('#start')!
-  start.addEventListener('click', async () => {
-    const result = await store.dispatch(roomApi.endpoints.createRoom.initiate())
-    if (result.data) {
-      location.search = `?room=${result.data}`
-    } else {
-      start.textContent = 'Could not open it. Try again'
-    }
+  const form = root.querySelector<HTMLFormElement>('#door-form')!
+  const note = root.querySelector<HTMLParagraphElement>('#door-note')!
+  form.addEventListener('submit', (event) => {
+    event.preventDefault()
+    void submitAccount(form, note, view.kind === 'register' ? 'register' : 'login', room)
   })
+}
+
+async function submitAccount(
+  form: HTMLFormElement,
+  note: HTMLParagraphElement,
+  action: 'register' | 'login',
+  room: string | null,
+) {
+  const data = new FormData(form)
+  const text = (key: string) => {
+    const value = data.get(key)
+    return typeof value === 'string' ? value : ''
+  }
+  const result = await sessionStore().dispatch(
+    authApi.endpoints.signIn.initiate({
+      action,
+      name: text('name'),
+      gameName: text('gameName'),
+      email: text('email'),
+      password: text('password'),
+    }),
+  )
+  if (result.data) {
+    const search = new URLSearchParams(location.search)
+    search.delete('room')
+    const rest = search.toString()
+    location.assign(room ? `/?room=${encodeURIComponent(room)}` : rest ? `/?${rest}` : '/')
+    return
+  }
+
+  const status = result.error && 'status' in result.error && typeof result.error.status === 'number' ? result.error.status : 0
+  const problem =
+    status === 400 && result.error && 'data' in result.error && result.error.data && typeof result.error.data === 'object'
+      ? (result.error.data as { error?: string }).error
+      : undefined
+  note.textContent =
+    problem === 'name'
+      ? 'Enter a name, up to 40 characters.'
+      : problem === 'gameName'
+        ? 'Enter a game name, up to 40 characters.'
+        : problem === 'password'
+          ? 'Use at least 8 characters.'
+          : status === 409
+            ? 'That email already has an account.'
+            : status === 401
+              ? 'That email or password is wrong.'
+              : 'Could not sign in. Try again.'
 }
 
 const promotionChoices = [
@@ -174,6 +313,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
         </div>
       </section>
       <section class="world tiles-world" id="tiles-world"></section>
+      <section class="world mystery-world" id="mystery-world"></section>
     </div>
   `
 
@@ -221,6 +361,7 @@ function renderRoom(root: HTMLDivElement, id: string) {
   })
   mountLobby(root.querySelector<HTMLElement>('#lobby')!, store, faces)
   mountTiles(root.querySelector<HTMLElement>('#tiles-world')!, store)
+  mountMystery(root.querySelector<HTMLElement>('#mystery-world')!, store)
 
   const applyToggles = (stream: MediaStream | null) => {
     const { camera, mic } = store.getState().devices
@@ -403,11 +544,11 @@ function renderRoom(root: HTMLDivElement, id: string) {
   }
 
   const showWorld = (world: string | null) => {
-    screen.classList.remove('world-room', 'world-game', 'world-tictactoe', 'world-chess', 'world-tiles')
+    screen.classList.remove('world-room', 'world-game', 'world-tictactoe', 'world-chess', 'world-tiles', 'world-mystery')
     if (world === 'room') {
       screen.classList.add('world-room')
     }
-    if (world === 'tictactoe' || world === 'chess' || world === 'tiles') {
+    if (world === 'tictactoe' || world === 'chess' || world === 'tiles' || world === 'mystery') {
       screen.classList.add('world-game', `world-${world}`)
     }
     placeFaces(world)

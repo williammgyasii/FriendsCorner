@@ -1,4 +1,4 @@
-export type ApiRoute = 'room' | 'turn' | 'refuse' | 'missing'
+export type ApiRoute = 'room' | 'account' | 'billing' | 'turn' | 'refuse' | 'missing'
 
 export function apiRouteFor(method: string, pathname: string): ApiRoute {
   if (pathname === '/rooms') {
@@ -7,6 +7,14 @@ export function apiRouteFor(method: string, pathname: string): ApiRoute {
 
   if (pathname.startsWith('/ws/')) {
     return method === 'GET' ? 'room' : 'refuse'
+  }
+
+  if (pathname === '/account') {
+    return method === 'GET' || method === 'POST' ? 'account' : 'refuse'
+  }
+
+  if (pathname === '/billing' || pathname === '/billing/webhook') {
+    return method === 'POST' ? 'billing' : 'refuse'
   }
 
   if (pathname === '/turn') {
