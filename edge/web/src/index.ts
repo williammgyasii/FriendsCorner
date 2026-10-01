@@ -1,4 +1,4 @@
-import { webRouteFor } from './route.ts'
+import { serveWeb } from './serve.ts'
 
 type Env = {
   ASSETS: Fetcher
@@ -6,12 +6,5 @@ type Env = {
 }
 
 export default {
-  async fetch(request, env): Promise<Response> {
-    const url = new URL(request.url)
-    if (webRouteFor(url.pathname) === 'api') {
-      return env.API.fetch(request)
-    }
-
-    return env.ASSETS.fetch(request)
-  },
+  fetch: serveWeb,
 } satisfies ExportedHandler<Env>
