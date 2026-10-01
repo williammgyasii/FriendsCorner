@@ -27,7 +27,7 @@ public class BillingControllerTests : IDisposable
 
     private readonly ScriptedStripe _stripe = new();
 
-    public BillingControllerTests() => _services.MigrateDatabaseAsync().GetAwaiter().GetResult();
+    public BillingControllerTests() => TestDatabase.Contexts().GetAwaiter().GetResult();
 
     public void Dispose() => _services.Dispose();
 

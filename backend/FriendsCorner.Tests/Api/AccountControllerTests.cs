@@ -25,7 +25,7 @@ public class AccountControllerTests : IDisposable
 
     private readonly string _email = $"ada.{Guid.NewGuid():N}@x.com";
 
-    public AccountControllerTests() => _services.MigrateDatabaseAsync().GetAwaiter().GetResult();
+    public AccountControllerTests() => TestDatabase.Contexts().GetAwaiter().GetResult();
 
     public void Dispose() => _services.Dispose();
 
