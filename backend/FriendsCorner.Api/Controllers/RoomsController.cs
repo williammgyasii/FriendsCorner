@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FriendsCorner.Api.Contracts;
 using FriendsCorner.Core.Engines;
 using FriendsCorner.Core.Managers;
@@ -14,7 +15,15 @@ public sealed class RoomsController : ControllerBase
     public RoomsController(IRoomRegistryManager registry) => _registry = registry;
 
     [HttpPost]
-    public ActionResult<RoomCreated> Create() => new RoomCreated(_registry.Create());
+    public ActionResult<RoomCreated> Create()
+    {
+        if (User.FindFirst(ClaimTypes.NameIdentifier)?.Value is not string raw || !Guid.TryParse(raw, out var host))
+        {
+            return Unauthorized();
+        }
+
+        return new RoomCreated(_registry.Create(host));
+    }
 
     [HttpGet("{roomId}")]
     public IActionResult Check(string roomId) => _registry.IsLive(roomId) ? NoContent() : NotFound();

@@ -1,6 +1,7 @@
 using FriendsCorner.Core.Engines;
 using FriendsCorner.Core.Engines.Games;
 using FriendsCorner.Core.Engines.LetterTiles;
+using FriendsCorner.Core.Engines.Mystery;
 
 namespace FriendsCorner.Core.Accessors;
 
@@ -27,3 +28,5 @@ public interface IBoardRecorderAccessor : ISnapshotRecorderAccessor<Board>;
 public interface IChessRecorderAccessor : ISnapshotRecorderAccessor<ChessBoard>;
 
 public interface ILetterTilesRecorderAccessor : ISnapshotRecorderAccessor<LetterTilesState>;
+
+public interface IMysteryRecorderAccessor : ISnapshotRecorderAccessor<MysteryState>;

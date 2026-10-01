@@ -19,7 +19,14 @@ public class RoomManagerTests
             new TickerUtility(),
             new StateMessageAccessor(),
             games ?? new FakeGameRecorder(),
+            new NoCaseWriter(),
             TimeProvider.System);
+
+    private sealed class NoCaseWriter : ICaseWriterAccessor
+    {
+        public Task<FriendsCorner.Core.Engines.Mystery.Case?> Write(CaseRequest request, CancellationToken cancellationToken) =>
+            Task.FromResult<FriendsCorner.Core.Engines.Mystery.Case?>(null);
+    }
 
     [Fact]
     public async Task An_accepted_game_move_notes_the_running_game_once()
@@ -107,7 +114,7 @@ public class RoomManagerTests
     public async Task A_chess_move_is_noted_for_saving()
     {
         var chess = new ChessRecorderAccessor();
-        var room = NewRoom(games: new GameRecorderAccessor(new BoardRecorderAccessor(), chess, new LetterTilesRecorderAccessor()));
+        var room = NewRoom(games: new GameRecorderAccessor(new BoardRecorderAccessor(), chess, new LetterTilesRecorderAccessor(), new MysteryRecorderAccessor()));
         room.Restore(new ChessGame(ChessBoard.Start()));
         await room.Join(new FakeSocket(), CancellationToken.None);
 
@@ -183,6 +190,39 @@ public class RoomManagerTests
         Assert.Equal(before, a.Sent.Count);
     }
 
+    [Fact]
+    public async Task The_same_account_keeps_one_seat_under_its_game_name()
+    {
+        var room = NewRoom();
+        var id = Guid.NewGuid();
+        var first = new FakeSocket();
+        var second = new FakeSocket();
+
+        var sat = await room.Join(first, id, "Countess", CancellationToken.None);
+        var again = await room.Join(second, id, "Countess", CancellationToken.None);
+
+        Assert.Equal(sat, again);
+        Assert.Contains("\"gameName\":\"Countess\"", second.Sent[^1]);
+        Assert.DoesNotContain("\"seat\":\"B\"", second.Sent[^1]);
+    }
+
+    [Fact]
+    public async Task A_friend_who_connects_first_does_not_become_host()
+    {
+        var room = NewRoom();
+        var opener = Guid.NewGuid();
+        room.RememberHost(opener);
+        var friend = new FakeSocket();
+        var host = new FakeSocket();
+
+        await room.Join(friend, Guid.NewGuid(), "Bea", CancellationToken.None);
+        await room.Join(host, opener, "Countess", CancellationToken.None);
+
+        Assert.Contains("\"host\":null", friend.Sent[1]);
+        Assert.Contains("\"host\":\"B\"", host.Sent[^1]);
+        Assert.Contains("\"gameName\":\"Countess\"", host.Sent[^1]);
+    }
+
     private sealed class CountingRecorder : IGameRecorderAccessor
     {
         public int Notes { get; private set; }
@@ -201,46 +241,6 @@ public class RoomManagerTests
             {
                 Noted.Add((roomId, ticTacToe.Board.Squares.ToArray()));
             }
-        }
-    }
-
-    private sealed class FakeSocket : WebSocket
-    {
-        public List<string> Sent { get; } = [];
-
-        public override WebSocketCloseStatus? CloseStatus => null;
-
-        public override string? CloseStatusDescription => null;
-
-        public override WebSocketState State => WebSocketState.Open;
-
-        public override string? SubProtocol => null;
-
-        public override Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType messageType, bool endOfMessage, CancellationToken cancellationToken)
-        {
-            lock (Sent)
-            {
-                Sent.Add(Encoding.UTF8.GetString(buffer));
-            }
-
-            return Task.CompletedTask;
-        }
-
-        public override Task<WebSocketReceiveResult> ReceiveAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public override Task CloseAsync(WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
-
-        public override Task CloseOutputAsync(WebSocketCloseStatus closeStatus, string? statusDescription, CancellationToken cancellationToken) =>
-            Task.CompletedTask;
-
-        public override void Abort()
-        {
-        }
-
-        public override void Dispose()
-        {
         }
     }
 }
