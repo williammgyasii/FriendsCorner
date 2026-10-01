@@ -1,5 +1,8 @@
 import { configureStore, type ThunkAction, type UnknownAction } from '@reduxjs/toolkit'
 import type { SignalPayload } from '../faceCall.ts'
+import { authApi } from './authApi.ts'
+import { authSlice } from './authSlice.ts'
+import { billingApi } from './billingApi.ts'
 import { chessUiSlice } from './chessUiSlice.ts'
 import { devicesSlice, loadDevices, saveDevices, type DeviceStorage } from './devicesSlice.ts'
 import { roomApi } from './roomApi.ts'
@@ -22,6 +25,11 @@ export type RoomMessageOut =
   | { type: 'tiles-exchange'; letters: string }
   | { type: 'tiles-pass' }
   | { type: 'tiles-rematch' }
+  | { type: 'mystery-open'; lead: string }
+  | { type: 'mystery-accuse'; suspect: string }
+  | { type: 'mystery-rematch' }
+  | { type: 'mystery-withdraw' }
+  | { type: 'mystery-settings'; level: 'easy' | 'hard'; mode: 'together' | 'race' }
   | { type: 'signal'; payload: SignalPayload }
 
 // The one way out to the room. The socket code provides it; tests pass a fake.
@@ -34,14 +42,18 @@ const browserStorage = () => (typeof localStorage === 'undefined' ? null : local
 export function makeStore(outbox: Outbox, { storage = browserStorage() }: StoreOptions = {}) {
   const store = configureStore({
     reducer: {
+      auth: authSlice.reducer,
       room: roomSlice.reducer,
       chessUi: chessUiSlice.reducer,
       tilesUi: tilesUiSlice.reducer,
       devices: devicesSlice.reducer,
+      [authApi.reducerPath]: authApi.reducer,
+      [billingApi.reducerPath]: billingApi.reducer,
       [roomApi.reducerPath]: roomApi.reducer,
     },
     preloadedState: { devices: loadDevices(storage) },
-    middleware: (getDefault) => getDefault({ thunk: { extraArgument: outbox } }).concat(roomApi.middleware),
+    middleware: (getDefault) =>
+      getDefault({ thunk: { extraArgument: outbox } }).concat(authApi.middleware, billingApi.middleware, roomApi.middleware),
   })
 
   let saved = store.getState().devices

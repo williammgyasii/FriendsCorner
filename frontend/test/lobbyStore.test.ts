@@ -13,8 +13,8 @@ const lobby: LobbyState = {
   canStart: false,
   countdownMs: null,
   members: [
-    { seat: 'A', ready: false, camera: true, mic: true, playing: true },
-    { seat: 'B', ready: false, camera: true, mic: true, playing: true },
+    { seat: 'A', gameName: 'Countess', ready: false, camera: true, mic: true, playing: true },
+    { seat: 'B', gameName: 'Bea', ready: false, camera: true, mic: true, playing: true },
   ],
 }
 

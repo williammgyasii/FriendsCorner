@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import assert from 'node:assert/strict'
 import { afterEach, test, vi } from 'vitest'
 import { fallbackIceServers } from '../src/ice.ts'
@@ -5,6 +7,8 @@ import { makeStore } from '../src/store/index.ts'
 import { iceServersFor, roomApi } from '../src/store/roomApi.ts'
 
 const turnReply = { iceServers: [{ urls: ['turn:turn.example:3478'], username: 'u', credential: 'c' }] }
+
+const requestOf = (fetch: ReturnType<typeof answer>) => fetch.mock.calls[0][0] as Request
 
 const answer = (body: unknown, status = 200) =>
   vi.fn(async () => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }))
@@ -52,7 +56,10 @@ test('opening a lobby returns the new room id', async () => {
   const result = await store.dispatch(roomApi.endpoints.createRoom.initiate())
 
   assert.equal(result.data, 'abc123')
-  assert.deepEqual(fetch.mock.calls[0], ['/rooms', { method: 'POST' }])
+  const request = requestOf(fetch)
+  assert.equal(request.method, 'POST')
+  assert.equal(new URL(request.url).pathname, '/rooms')
+  assert.equal(request.credentials, 'include')
 })
 
 test('a lobby that fails to open is reported, not cached', async () => {
@@ -62,5 +69,5 @@ test('a lobby that fails to open is reported, not cached', async () => {
   const result = await store.dispatch(roomApi.endpoints.createRoom.initiate())
 
   assert.equal(result.data, undefined)
-  assert.deepEqual(result.error, { status: 503 })
+  assert.equal(result.error && 'status' in result.error ? result.error.status : 0, 503)
 })

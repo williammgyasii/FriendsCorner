@@ -36,8 +36,8 @@ export function openRoomSocket(url: string, { dispatch, onSignal, connect = (to)
       const { type: _type, ...answer } = message as unknown as TilesPreview & { type: string }
       dispatch(previewReceived(answer))
     } else if (message.type === 'state') {
-      const { you, world, board, chess, players, lobby = null, tiles = null } = message as unknown as RoomSnapshot
-      dispatch(stateReceived({ you, world, board, chess, players, lobby, tiles }))
+      const { you, world, board, chess, players, lobby = null, tiles = null, mystery = null } = message as unknown as RoomSnapshot
+      dispatch(stateReceived({ you, world, board, chess, players, lobby, tiles, mystery }))
     }
   })
 
