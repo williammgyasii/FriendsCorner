@@ -6,8 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## Unreleased
 
+### Added
+- Host accounts: sign up, sign in, and session cookies on the play app arcade door.
+- Host subscriptions via Stripe (Corner, Table, House plans) with checkout confirm on return.
+- Post-login host dashboard with sidebar navigation, profile, and billing plan cards.
+- Murder mystery game: AI-generated cases, lobby settings, and a dedicated mystery screen.
+- RTK Query for play app HTTP (account, billing, rooms).
+
 ### Changed
 - The game is served at play.friendscorner.app. friendscorner.app is the marketing site.
+- Play app favicon matches Friends Corner branding.
 
 ## v0.1.2 — 2026-09-28
 
