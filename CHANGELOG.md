@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## Unreleased
 
+## v0.2.0 — 2026-09-30
+
 ### Added
 - Host accounts: sign up, sign in, and session cookies on the play app arcade door.
 - Host subscriptions via Stripe (Corner, Table, House plans) with checkout confirm on return.
