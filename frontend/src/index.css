@@ -80,25 +80,32 @@
 }
 
 :root {
-  --seat-a: #2f6bff;
-  --seat-b: #e23d6b;
-  --background: #f7f4ef;
-  --foreground: #1c1915;
-  --card: #ffffff;
-  --card-foreground: #1c1915;
-  --popover: #ffffff;
-  --popover-foreground: #1c1915;
+  color-scheme: dark;
+  --seat-a: #5b8cff;
+  --seat-b: #f0587f;
+  --background: #0e0c11;
+  --foreground: #ece6dc;
+  --card: #1a1720;
+  --card-foreground: #ece6dc;
+  --popover: #1f1b26;
+  --popover-foreground: #ece6dc;
   --primary: var(--seat-a);
   --primary-foreground: #ffffff;
-  --secondary: #ece6dc;
-  --secondary-foreground: #1c1915;
-  --muted: #ece6dc;
-  --muted-foreground: #6b6358;
-  --accent: #e5edff;
-  --accent-foreground: #1c1915;
-  --destructive: #c62828;
-  --border: #e2dace;
-  --input: #e2dace;
+  --secondary: #26212d;
+  --secondary-foreground: #ece6dc;
+  --muted: #26212d;
+  --muted-foreground: #a39a8e;
+  --accent: #222a45;
+  --accent-foreground: #ece6dc;
+  --destructive: #ef5350;
+  --border: #342d3c;
+  --input: #342d3c;
   --ring: color-mix(in srgb, var(--seat-a) 60%, transparent);
-  --radius: 1.25rem;
+  --edge: #07060a;
+  --radius: 0.75rem;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
 }
