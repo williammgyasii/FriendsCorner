@@ -33,6 +33,24 @@ public sealed class SeatSocketAccessor : ISeatSocketAccessor
         }
     }
 
+    public bool Holds(Seat seat, WebSocket socket)
+    {
+        lock (_gate)
+        {
+            return _sockets.TryGetValue(seat, out var current) && ReferenceEquals(current, socket);
+        }
+    }
+
+    public WebSocket? Replace(Seat seat, WebSocket socket)
+    {
+        lock (_gate)
+        {
+            _sockets.TryGetValue(seat, out var previous);
+            _sockets[seat] = socket;
+            return ReferenceEquals(previous, socket) ? null : previous;
+        }
+    }
+
     // True when that was the last connection.
     public bool Remove(Seat seat)
     {

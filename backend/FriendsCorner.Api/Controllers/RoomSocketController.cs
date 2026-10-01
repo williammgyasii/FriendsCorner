@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using System.Security.Claims;
 using FriendsCorner.Api.Contracts;
 using FriendsCorner.Core.Engines;
 using FriendsCorner.Core.Managers;
@@ -26,6 +27,15 @@ public sealed class RoomSocketController : ControllerBase
     [HttpGet("{roomId}")]
     public async Task<IActionResult> Connect(string roomId)
     {
+        if (User.FindFirst(ClaimTypes.NameIdentifier)?.Value is not string raw || !Guid.TryParse(raw, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var gameName = User.FindFirst(AccountsController.GameNameClaim)?.Value
+            ?? User.FindFirst(ClaimTypes.Name)?.Value
+            ?? "Player";
+
         if (!HttpContext.WebSockets.IsWebSocketRequest)
         {
             return BadRequest();
@@ -39,7 +49,7 @@ public sealed class RoomSocketController : ControllerBase
 
         using var socket = await HttpContext.WebSockets.AcceptWebSocketAsync();
         var cancellationToken = HttpContext.RequestAborted;
-        if (await room.Join(socket, cancellationToken) is not { } seat)
+        if (await room.Join(socket, userId, gameName, cancellationToken) is not { } seat)
         {
             await socket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "room is full", CancellationToken.None);
             return new EmptyResult();
@@ -51,7 +61,7 @@ public sealed class RoomSocketController : ControllerBase
         }
         finally
         {
-            await room.Leave(seat);
+            await room.Leave(seat, socket);
         }
 
         return new EmptyResult();

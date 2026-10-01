@@ -10,6 +10,11 @@ public interface ISeatSocketAccessor
 
     void Add(Seat seat, WebSocket socket);
 
+    bool Holds(Seat seat, WebSocket socket);
+
+    // The socket this seat had before, when a new one takes its place.
+    WebSocket? Replace(Seat seat, WebSocket socket);
+
     // True when that was the last connection.
     bool Remove(Seat seat);
 
