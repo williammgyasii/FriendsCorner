@@ -5,6 +5,7 @@ using FriendsCorner.Core.Accessors;
 using FriendsCorner.Core.Managers;
 using FriendsCorner.Core.Utilities;
 using FriendsCorner.Infrastructure;
+using FriendsCorner.Infrastructure.Accessors;
 using FriendsCorner.Infrastructure.Persistence;
 using FriendsCorner.Infrastructure.Utilities;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,7 @@ public class InfrastructureRegistrationTests
 
     private static ServiceProvider Build() =>
         new ServiceCollection()
-            .AddInfrastructure(UnusedDatabase).AddApi()
+            .AddInfrastructure(UnusedDatabase).AddApi("test-ticket-key")
             .BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
 
     [Fact]
@@ -30,6 +31,7 @@ public class InfrastructureRegistrationTests
 
         Assert.NotNull(ActivatorUtilities.CreateInstance<RoomsController>(provider));
         Assert.NotNull(ActivatorUtilities.CreateInstance<RoomSocketController>(provider));
+        Assert.NotNull(ActivatorUtilities.CreateInstance<AccountsController>(provider));
     }
 
     [Fact]
@@ -79,6 +81,18 @@ public class InfrastructureRegistrationTests
 
         Assert.True(room.TryLaunch(LetterTilesGame.GameId));
         Assert.IsType<LetterTilesGame>(room.Game);
+    }
+
+    [Fact]
+    public void One_case_writer_serves_the_whole_app()
+    {
+        using var provider = new ServiceCollection()
+            .AddInfrastructure(UnusedDatabase, new CaseWriterSettings("test-key", "test-model")).AddApi("test-ticket-key")
+            .BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+
+        var writer = provider.GetRequiredService<ICaseWriterAccessor>();
+        Assert.IsType<OpenAiCaseWriterAccessor>(writer);
+        Assert.Same(writer, provider.GetRequiredService<ICaseWriterAccessor>());
     }
 
     [Fact]

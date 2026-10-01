@@ -11,11 +11,22 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace FriendsCorner.Infrastructure;
 
+public sealed record StripeSettings(
+    string? SecretKey,
+    string? WebhookSecret,
+    string? CornerPrice,
+    string? TablePrice,
+    string? HousePrice);
+
 // Pairs every Core interface with the class that does the work, and says how
 // long each one lives.
 public static class InfrastructureRegistration
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, string databaseUrl)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        string databaseUrl,
+        CaseWriterSettings? caseWriter = null,
+        StripeSettings? stripe = null)
     {
         // One per app: shared state or a shared connection string.
         services.AddSingleton(TimeProvider.System);
@@ -32,12 +43,32 @@ public static class InfrastructureRegistration
         services.AddSingleton<ILetterTilesTableAccessor, LetterTilesTableAccessor>();
         services.AddSingleton<ILetterTilesRecorderAccessor>(provider =>
             new LetterTilesRecorderAccessor(provider.GetRequiredService<ILetterTilesTableAccessor>().Save));
+        services.AddSingleton<IMysteryTableAccessor, MysteryTableAccessor>();
+        services.AddSingleton<IMysteryRecorderAccessor>(provider =>
+            new MysteryRecorderAccessor(provider.GetRequiredService<IMysteryTableAccessor>().Save));
         services.AddSingleton<IGameRecorderAccessor, GameRecorderAccessor>();
         services.AddSingleton<IGameTableAccessor, GameTableAccessor>();
         services.AddSingleton<IRoomRegistryManager, RoomRegistryManager>();
         services.AddSingleton<IRoomManagerFactory, RoomManagerFactory>();
         services.AddHostedService<RecorderFlushAccessor>();
 
+        // One long-lived client; the pooled lifetime picks up DNS changes.
+        services.AddSingleton<ICaseWriterAccessor>(new OpenAiCaseWriterAccessor(
+            new HttpClient(new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(15) }),
+            caseWriter ?? new CaseWriterSettings(ApiKey: null)));
+
+        services.AddSingleton<IUserAccessor, UserAccessor>();
+        services.AddSingleton<IHostPlanAccessor, HostPlanAccessor>();
+        services.AddSingleton<IStripeAccessor>(new StripeBillingAccessor(stripe?.SecretKey, stripe?.WebhookSecret));
+        services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
+        services.AddSingleton<AccountManager>();
+        services.AddSingleton(provider => new SubscriptionManager(
+            provider.GetRequiredService<IHostPlanAccessor>(),
+            provider.GetRequiredService<IStripeAccessor>(),
+            stripe?.SecretKey,
+            stripe?.CornerPrice,
+            stripe?.TablePrice,
+            stripe?.HousePrice));
         services.AddSingleton<IWordListAccessor, WordListAccessor>();
         services.AddSingleton(provider =>
             new GameCatalog(provider.GetRequiredService<IWordListAccessor>(), () => new Random()));

@@ -20,4 +20,8 @@ public interface IGameEngine
     bool TryRematch();
 
     GameAnswer? Ask(Seat seat, GameQuestion question) => null;
+
+    // The room calls this every tick. Moves never see the time; a game with
+    // a clock starts and runs it here, and says whether anything changed.
+    bool TryAdvance(DateTimeOffset now) => false;
 }

@@ -28,7 +28,7 @@ public class LobbyEngineTests
     }
 
     [Fact]
-    public void When_the_game_master_leaves_the_next_player_in_takes_over()
+    public void When_the_opener_leaves_nobody_else_becomes_host()
     {
         var lobby = new LobbyEngine();
         lobby.Join(Seat.A);
@@ -38,7 +38,7 @@ public class LobbyEngineTests
 
         lobby.Leave(Seat.A);
 
-        Assert.Equal(Seat.B, lobby.Host);
+        Assert.Null(lobby.Host);
         Assert.Equal([Seat.B, Seat.C], lobby.Players);
     }
 
@@ -221,5 +221,24 @@ public class LobbyEngineTests
         lobby.SetMedia(Seat.A, camera: false, mic: true);
 
         Assert.Equal(new Media(Camera: false, Mic: true), lobby.MediaOf(Seat.A));
+    }
+
+    [Fact]
+    public void A_friend_who_sits_first_is_not_the_host()
+    {
+        var opener = Guid.NewGuid();
+        var friend = Guid.NewGuid();
+        var lobby = new LobbyEngine();
+        lobby.AssignHost(opener);
+
+        Assert.True(lobby.Join(Seat.A, friend, "Bea"));
+        Assert.Null(lobby.Host);
+        Assert.False(lobby.TryStart(Seat.A, Now));
+
+        Assert.True(lobby.Join(Seat.B, opener, "Countess"));
+
+        Assert.Equal(Seat.B, lobby.Host);
+        Assert.Equal("Bea", lobby.GameNameOf(Seat.A));
+        Assert.Equal("Countess", lobby.GameNameOf(Seat.B));
     }
 }

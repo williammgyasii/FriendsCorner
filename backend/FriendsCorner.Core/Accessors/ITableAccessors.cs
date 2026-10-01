@@ -1,6 +1,7 @@
 using FriendsCorner.Core.Engines;
 using FriendsCorner.Core.Engines.Games;
 using FriendsCorner.Core.Engines.LetterTiles;
+using FriendsCorner.Core.Engines.Mystery;
 
 namespace FriendsCorner.Core.Accessors;
 
@@ -33,6 +34,15 @@ public interface ILetterTilesTableAccessor
     Task Save(string roomId, LetterTilesState state);
 
     Task<LetterTilesState?> Load(string roomId);
+
+    Task Remove(string roomId);
+}
+
+public interface IMysteryTableAccessor
+{
+    Task Save(string roomId, MysteryState state);
+
+    Task<MysteryState?> Load(string roomId);
 
     Task Remove(string roomId);
 }
