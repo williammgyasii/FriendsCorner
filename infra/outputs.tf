@@ -7,5 +7,9 @@ output "zone_status" {
 }
 
 output "site_url" {
-  value = "https://${cloudflare_workers_custom_domain.site.hostname}"
+  value = "https://${cloudflare_workers_custom_domain.marketing.hostname}"
+}
+
+output "game_url" {
+  value = "https://${cloudflare_workers_custom_domain.game.hostname}"
 }
