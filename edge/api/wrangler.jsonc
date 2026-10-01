@@ -6,6 +6,28 @@
   "workers_dev": false,
   "preview_urls": false,
   "observability": { "enabled": true },
+  "ratelimits": [
+    {
+      "name": "ACCOUNT_POST",
+      "namespace_id": "1001",
+      "simple": { "limit": 10, "period": 60 }
+    },
+    {
+      "name": "ROOM_POST",
+      "namespace_id": "1002",
+      "simple": { "limit": 20, "period": 60 }
+    },
+    {
+      "name": "BILLING_POST",
+      "namespace_id": "1003",
+      "simple": { "limit": 20, "period": 60 }
+    },
+    {
+      "name": "TURN_GET",
+      "namespace_id": "1004",
+      "simple": { "limit": 60, "period": 60 }
+    }
+  ],
   "containers": [
     {
       "class_name": "RoomApi",
