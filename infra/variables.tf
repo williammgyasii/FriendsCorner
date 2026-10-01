@@ -12,3 +12,8 @@ variable "worker_name" {
   type    = string
   default = "friendscorner-web"
 }
+
+variable "marketing_worker_name" {
+  type    = string
+  default = "friendscorner-website"
+}

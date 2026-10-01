@@ -6,6 +6,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## Unreleased
 
+### Changed
+- The game is served at play.friendscorner.app. friendscorner.app is the marketing site.
+
 ## v0.1.2 — 2026-09-28
 
 ### Changed
