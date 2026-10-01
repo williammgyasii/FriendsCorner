@@ -1,4 +1,5 @@
 using FriendsCorner.Core.Engines.Games;
+using FriendsCorner.Core.Engines.Mystery;
 
 namespace FriendsCorner.Core.Engines;
 
@@ -21,6 +22,8 @@ public sealed record SetCapacity(int Size) : RoomCommand;
 public sealed record ShareMedia(bool Camera, bool Mic) : RoomCommand;
 
 public sealed record StartGame : RoomCommand;
+
+public sealed record SetMysterySettings(MysterySettings Settings) : RoomCommand;
 
 // What a command changed, so the caller knows what to show and what to save.
 [Flags]

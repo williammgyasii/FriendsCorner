@@ -47,7 +47,7 @@ export function describeMarks(board: MarksBoard, you: 'A' | 'B'): MarksLook {
   if (board.draw) {
     return {
       turn: null,
-      color: '#1c1915',
+      color: '#a39a8e',
       status: 'Draw.',
       celebrate: 'Draw',
       winning: [],

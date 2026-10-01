@@ -115,7 +115,7 @@ function MemberCard({ slot, stream }: { slot: Extract<Slot, { kind: 'member' }>;
           <FaceVideo stream={stream} mirrored={slot.isYou} />
         ) : (
           <div className="grid size-full place-items-center text-4xl font-bold text-white" style={{ background: color }}>
-            {slot.isYou ? 'You' : slot.label.replace('Player ', 'P')}
+            {slot.isYou ? 'You' : slot.label.slice(0, 1)}
           </div>
         )}
         <div className="absolute right-2 bottom-2 flex gap-1">

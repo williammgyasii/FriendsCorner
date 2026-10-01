@@ -1,6 +1,7 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { ChessState, Seat } from '../chessLook.ts'
 import type { LobbyState, RoomSeat } from '../lobbyLook.ts'
+import type { MysteryState } from '../mysteryLook.ts'
 import type { TilesState } from '../tilesLook.ts'
 
 export type Player = { x: number; y: number } | null
@@ -20,6 +21,7 @@ export type RoomSnapshot = {
   board: BoardState | null
   chess: ChessState | null
   tiles?: TilesState | null
+  mystery?: MysteryState | null
   players: { A: Player; B: Player; C?: Player; D?: Player }
   lobby: LobbyState | null
 }
@@ -66,6 +68,9 @@ export const roomSlice = createSlice({
       }
       if (!same(state.snapshot.tiles ?? null, next.tiles ?? null)) {
         state.snapshot.tiles = next.tiles ?? null
+      }
+      if (!same(state.snapshot.mystery ?? null, next.mystery ?? null)) {
+        state.snapshot.mystery = next.mystery ?? null
       }
       if (!same(state.snapshot.lobby, next.lobby)) {
         state.snapshot.lobby = next.lobby

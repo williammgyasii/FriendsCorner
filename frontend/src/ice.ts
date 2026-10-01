@@ -35,12 +35,3 @@ export function iceServersFrom(body: unknown): IceServer[] {
 
   return servers.length > 0 ? servers : fallbackIceServers
 }
-
-export async function loadIceServers(roomId: string): Promise<IceServer[]> {
-  try {
-    const response = await fetch(`/turn?room=${encodeURIComponent(roomId)}`)
-    return iceServersFrom(response.ok ? await response.json() : null)
-  } catch {
-    return fallbackIceServers
-  }
-}

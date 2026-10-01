@@ -47,7 +47,7 @@ public sealed class RoomEngine
 
         if (world != Floor)
         {
-            if (!_games.TryStart(world, Lobby.Playing, out var game))
+            if (!_games.TryStart(world, new GameStart(Lobby.Playing, Lobby.Mystery), out var game))
             {
                 return false;
             }
@@ -85,6 +85,7 @@ public sealed class RoomEngine
             SetCapacity capacity => Lobby.TrySetCapacity(seat, capacity.Size),
             ShareMedia media => ShareMedia(seat, media),
             StartGame => Lobby.TryStart(seat, now),
+            SetMysterySettings settings => Lobby.TrySetMystery(seat, settings.Settings),
             _ => false,
         };
 
@@ -113,17 +114,18 @@ public sealed class RoomEngine
     public bool TryFinishCountdown(DateTimeOffset now) =>
         Lobby.TryFinishCountdown(now, out var world) && TryLaunch(world);
 
-    // One step of the room's clock: players glide, and a finished countdown
-    // opens the picked game, whose fresh board is then worth saving.
+    // One step of the room's clock: players glide, a finished countdown opens
+    // the picked game, and the running game's own clocks move.
     public RoomChange Advance(double seconds, DateTimeOffset now)
     {
         Tick(seconds);
-        if (!TryFinishCountdown(now))
+        var change = RoomChange.None;
+        if (TryFinishCountdown(now))
         {
-            return RoomChange.None;
+            change = Game is null ? RoomChange.Lobby : RoomChange.Lobby | RoomChange.Game;
         }
 
-        return Game is null ? RoomChange.Lobby : RoomChange.Lobby | RoomChange.Game;
+        return Game?.TryAdvance(now) == true ? change | RoomChange.Game : change;
     }
 
     public bool TryAddSeat(out Seat seat)
@@ -135,9 +137,34 @@ public sealed class RoomEngine
             return false;
         }
 
+        Sit(seat);
+        return true;
+    }
+
+    // True when this account sat down, including when they already hold the seat.
+    public bool TrySit(Guid userId, string gameName, out Seat seat)
+    {
+        if (Lobby.SeatOf(userId) is Seat held)
+        {
+            seat = held;
+            return true;
+        }
+
+        seat = Enum.GetValues<Seat>().FirstOrDefault(free => !_positions.ContainsKey(free));
+        if (_positions.ContainsKey(seat) || !Lobby.Join(seat, userId, gameName))
+        {
+            seat = default;
+            return false;
+        }
+
+        Sit(seat);
+        return true;
+    }
+
+    private void Sit(Seat seat)
+    {
         _positions[seat] = new Position(240, 160);
         _directions[seat] = (0, 0);
-        return true;
     }
 
     public bool TrySetDirection(Seat seat, double x, double y)

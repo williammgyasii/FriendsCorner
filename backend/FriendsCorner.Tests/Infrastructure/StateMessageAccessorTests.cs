@@ -35,11 +35,12 @@ public class StateMessageAccessorTests
         var json = _state.Write(room, Seat.B, Now);
 
         const string expected = """
-            {"type":"state","you":"B","world":null,"board":null,"chess":null,"tiles":null,
+            {"type":"state","you":"B","world":null,"board":null,"chess":null,"tiles":null,"mystery":null,
             "players":{"A":{"x":240,"y":160},"B":{"x":240,"y":160},"C":null,"D":null},
             "lobby":{"host":"A","capacity":2,"pick":"chess","canStart":false,"countdownMs":null,
-            "members":[{"seat":"A","ready":false,"camera":true,"mic":true,"playing":true},
-            {"seat":"B","ready":false,"camera":true,"mic":true,"playing":true}]}}
+            "members":[{"seat":"A","gameName":"Player","ready":false,"camera":true,"mic":true,"playing":true},
+            {"seat":"B","gameName":"Player","ready":false,"camera":true,"mic":true,"playing":true}],
+            "mystery":{"level":"easy","mode":"together"}}}
             """;
         Assert.Equal(expected.Replace("\n", ""), json);
     }
@@ -70,6 +71,7 @@ public class StateMessageAccessorTests
 
         Assert.Equal("tictactoe", state.RootElement.GetProperty("world").GetString());
         Assert.Equal(JsonValueKind.Null, state.RootElement.GetProperty("tiles").ValueKind);
+        Assert.Equal(JsonValueKind.Null, state.RootElement.GetProperty("mystery").ValueKind);
         Assert.Equal(
             """{"squares":["X",null,null,null,null,null,null,null,null],"next":"B","winner":null,"draw":false}""",
             state.RootElement.GetProperty("board").GetRawText());
@@ -87,6 +89,7 @@ public class StateMessageAccessorTests
 
         Assert.Equal(room.RunningChess().Fen, chess.GetProperty("fen").GetString());
         Assert.Equal(JsonValueKind.Null, state.RootElement.GetProperty("tiles").ValueKind);
+        Assert.Equal(JsonValueKind.Null, state.RootElement.GetProperty("mystery").ValueKind);
         Assert.Equal("A", chess.GetProperty("white").GetString());
         Assert.Equal("B", chess.GetProperty("toMove").GetString());
         Assert.False(chess.GetProperty("inCheck").GetBoolean());

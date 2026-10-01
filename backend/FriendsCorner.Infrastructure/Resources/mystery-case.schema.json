@@ -1,0 +1,98 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "setting", "mood", "victim", "suspects", "places", "solution", "leads", "proofs", "minutes"],
+  "properties": {
+    "title": { "type": "string" },
+    "setting": { "type": "string" },
+    "mood": { "type": "string", "enum": ["frost", "storm", "velvet", "garden", "smoke", "gilded"] },
+    "minutes": { "type": "integer", "minimum": 5, "maximum": 20 },
+    "victim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "found"],
+      "properties": {
+        "name": { "type": "string" },
+        "found": { "type": "string" }
+      }
+    },
+    "suspects": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "role", "motive", "alibi"],
+        "properties": {
+          "id": { "type": "string", "enum": ["s1", "s2", "s3", "s4"] },
+          "name": { "type": "string" },
+          "role": { "type": "string" },
+          "motive": { "type": "string" },
+          "alibi": { "type": "string" }
+        }
+      }
+    },
+    "places": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string", "enum": ["p1", "p2", "p3"] },
+          "name": { "type": "string" }
+        }
+      }
+    },
+    "solution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["killer", "how", "why", "story"],
+      "properties": {
+        "killer": { "type": "string", "enum": ["s1", "s2", "s3", "s4"] },
+        "how": { "type": "string" },
+        "why": { "type": "string" },
+        "story": { "type": "string" }
+      }
+    },
+    "leads": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "about", "text", "lie"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^(c[1-6]|t[1-8])$" },
+          "kind": { "type": "string", "enum": ["clue", "statement"] },
+          "about": { "type": "string", "enum": ["p1", "p2", "p3", "s1", "s2", "s3", "s4"] },
+          "text": { "type": "string" },
+          "lie": { "type": "boolean" }
+        }
+      }
+    },
+    "proofs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["suspect", "leads"],
+        "properties": {
+          "suspect": { "type": "string", "enum": ["s1", "s2", "s3", "s4"] },
+          "leads": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": { "type": "string", "pattern": "^(c[1-6]|t[1-8])$" }
+          }
+        }
+      }
+    }
+  }
+}

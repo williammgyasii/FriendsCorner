@@ -35,7 +35,7 @@ public class RoomRegistryManagerTests
     {
         var games = new FakeGameTable();
         var registry = new RoomRegistryManager(games, new FakeRoomFactory());
-        var id = registry.Create();
+        var id = registry.Create(Guid.NewGuid());
 
         Assert.NotNull(await registry.Find(id));
         Assert.Equal(0, games.Loads);
@@ -46,7 +46,7 @@ public class RoomRegistryManagerTests
     {
         var factory = new FakeRoomFactory();
         var registry = new RoomRegistryManager(new FakeGameTable(), factory);
-        var id = registry.Create();
+        var id = registry.Create(Guid.NewGuid());
 
         factory.Made[0].OnEmpty();
 
@@ -86,7 +86,14 @@ public class RoomRegistryManagerTests
 
         public void Restore(IGameEngine game) => Restored = game;
 
+        public void RememberHost(Guid userId)
+        {
+        }
+
         public Task<Seat?> Join(WebSocket socket, CancellationToken cancellationToken) => Task.FromResult<Seat?>(null);
+
+        public Task<Seat?> Join(WebSocket socket, Guid userId, string gameName, CancellationToken cancellationToken) =>
+            Task.FromResult<Seat?>(null);
 
         public Task Act(Seat seat, RoomCommand command, CancellationToken cancellationToken) => Task.CompletedTask;
 

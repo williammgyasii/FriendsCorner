@@ -3,6 +3,7 @@ import { test } from 'vitest'
 import { makeStore } from '../src/store/index.ts'
 import { openRoomSocket, type SocketLike } from '../src/store/roomSocket.ts'
 import { tapRackTile, tapSquare } from '../src/store/tilesUiSlice.ts'
+import { mystery } from './mysteryFixture.ts'
 import { tiles } from './tilesFixture.ts'
 
 class FakeSocket implements SocketLike {
@@ -82,7 +83,18 @@ test('a state message becomes the latest server copy', () => {
     players: { A: { x: 1, y: 1 }, B: null },
     lobby: null,
     tiles: null,
+    mystery: null,
   })
+})
+
+test('a state message keeps the mystery section, and a changed one replaces it', () => {
+  const { store, socket } = setup()
+  const state = (section: unknown) => ({ type: 'state', you: 'B', world: 'mystery', board: null, chess: null, players: { A: null, B: null }, mystery: section })
+
+  socket.receive(state(mystery()))
+  socket.receive(state(mystery({ leadsLeft: 5 })))
+
+  assert.deepEqual(store.getState().room.snapshot?.mystery, mystery({ leadsLeft: 5 }))
 })
 
 test('a state message keeps this seat\'s Letter Tiles section', () => {

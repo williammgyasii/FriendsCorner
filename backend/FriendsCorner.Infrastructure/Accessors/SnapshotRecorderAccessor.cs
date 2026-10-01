@@ -1,6 +1,7 @@
 using FriendsCorner.Core.Accessors;
 using FriendsCorner.Core.Engines;
 using FriendsCorner.Core.Engines.LetterTiles;
+using FriendsCorner.Core.Engines.Mystery;
 
 namespace FriendsCorner.Infrastructure.Accessors;
 
@@ -151,6 +152,18 @@ public sealed class LetterTilesRecorderAccessor : SnapshotRecorderAccessor<Lette
     }
 
     public LetterTilesRecorderAccessor(Func<string, LetterTilesState, Task> write)
+        : base(write)
+    {
+    }
+}
+
+public sealed class MysteryRecorderAccessor : SnapshotRecorderAccessor<MysteryState>, IMysteryRecorderAccessor
+{
+    public MysteryRecorderAccessor()
+    {
+    }
+
+    public MysteryRecorderAccessor(Func<string, MysteryState, Task> write)
         : base(write)
     {
     }

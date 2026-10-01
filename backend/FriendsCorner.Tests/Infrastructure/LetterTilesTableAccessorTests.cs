@@ -91,7 +91,7 @@ public class LetterTilesTableAccessorTests
     {
         var contexts = await TestDatabase.Contexts();
         var tiles = new LetterTilesTableAccessor(contexts);
-        var games = new GameTableAccessor(new BoardTableAccessor(contexts), new ChessTableAccessor(contexts), tiles, Words);
+        var games = new GameTableAccessor(new BoardTableAccessor(contexts), new ChessTableAccessor(contexts), tiles, new MysteryTableAccessor(contexts), Words);
         var roomId = Guid.NewGuid().ToString("N");
         var saved = MidGame();
         await tiles.Save(roomId, saved);
@@ -108,7 +108,7 @@ public class LetterTilesTableAccessorTests
     public void A_noted_tiles_game_goes_to_the_tiles_recorder()
     {
         var tiles = new LetterTilesRecorderAccessor();
-        var games = new GameRecorderAccessor(new BoardRecorderAccessor(), new ChessRecorderAccessor(), tiles);
+        var games = new GameRecorderAccessor(new BoardRecorderAccessor(), new ChessRecorderAccessor(), tiles, new MysteryRecorderAccessor());
         var game = LetterTilesGame.Start([Seat.A, Seat.B], Words, new Random(3));
 
         games.Note("room-1", game);

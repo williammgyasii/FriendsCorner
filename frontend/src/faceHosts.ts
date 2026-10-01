@@ -14,6 +14,8 @@ export function faceHosts(world: string | null, root: ParentNode): [HTMLElement,
       return pair('#chess-card-left .player-face', '#chess-card-right .player-face')
     case 'tiles':
       return pair('#tiles-world [data-face="you"]', '#tiles-world [data-face="partner"]')
+    case 'mystery':
+      return pair('#mystery-world [data-face="you"]', '#mystery-world [data-face="partner"]')
     default:
       return null
   }

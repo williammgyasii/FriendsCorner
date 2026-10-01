@@ -53,5 +53,5 @@ test('a draw offers another round without a winning line', () => {
   assert.deepEqual(look.winning, [])
   assert.equal(look.celebrate, 'Draw')
   assert.equal(look.canRematch, true)
-  assert.equal(look.color, '#1c1915')
+  assert.equal(look.color, '#a39a8e')
 })

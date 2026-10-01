@@ -18,6 +18,8 @@ public class FriendsCornerDbTests
     [Fact]
     public async Task Migrating_at_startup_leaves_nothing_pending_in_Neon()
     {
+        await TestDatabase.Contexts();
+
         await using var provider = new ServiceCollection()
             .AddInfrastructure(TestDatabase.ConnectionString())
             .BuildServiceProvider();

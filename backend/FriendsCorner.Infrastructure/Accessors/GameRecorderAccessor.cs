@@ -1,6 +1,7 @@
 using FriendsCorner.Core.Accessors;
 using FriendsCorner.Core.Engines.Games;
 using FriendsCorner.Core.Engines.LetterTiles;
+using FriendsCorner.Core.Engines.Mystery;
 
 namespace FriendsCorner.Infrastructure.Accessors;
 
@@ -9,7 +10,8 @@ namespace FriendsCorner.Infrastructure.Accessors;
 public sealed class GameRecorderAccessor(
     IBoardRecorderAccessor boards,
     IChessRecorderAccessor chess,
-    ILetterTilesRecorderAccessor tiles) : IGameRecorderAccessor
+    ILetterTilesRecorderAccessor tiles,
+    IMysteryRecorderAccessor mystery) : IGameRecorderAccessor
 {
     public void Note(string roomId, IGameEngine game)
     {
@@ -23,6 +25,9 @@ public sealed class GameRecorderAccessor(
                 break;
             case LetterTilesGame letterTiles:
                 tiles.Note(roomId, letterTiles.State);
+                break;
+            case MysteryGame mysteryGame:
+                mystery.Note(roomId, mysteryGame.State);
                 break;
         }
     }

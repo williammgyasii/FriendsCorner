@@ -108,6 +108,49 @@ public class ClientMessageReaderTests
     }
 
     [Fact]
+    public void Mystery_open_accuse_and_rematch_read_as_their_commands()
+    {
+        Assert.Equal(new Act(new OpenLead("c1")), _reader.Read("""{"type":"mystery-open","lead":"c1"}"""));
+        Assert.Equal(new Act(new Accuse("s3")), _reader.Read("""{"type":"mystery-accuse","suspect":"s3"}"""));
+        Assert.Equal(new Act(new Rematch()), _reader.Read("""{"type":"mystery-rematch"}"""));
+        Assert.Equal(new Act(new Withdraw()), _reader.Read("""{"type":"mystery-withdraw"}"""));
+    }
+
+    [Fact]
+    public void Mystery_settings_read_as_the_settings_command()
+    {
+        Assert.Equal(
+            new Act(new SetMysterySettings(new MysterySettings(MysteryLevel.Hard, MysteryMode.Race))),
+            _reader.Read("""{"type":"mystery-settings","level":"hard","mode":"race"}"""));
+        Assert.Equal(
+            new Act(new SetMysterySettings(MysterySettings.Default)),
+            _reader.Read("""{"type":"mystery-settings","level":"easy","mode":"together"}"""));
+    }
+
+    [Theory]
+    [InlineData("""{"type":"mystery-settings","level":"medium","mode":"race"}""")]
+    [InlineData("""{"type":"mystery-settings","level":"hard","mode":"solo"}""")]
+    [InlineData("""{"type":"mystery-settings","level":"Hard","mode":"race"}""")]
+    [InlineData("""{"type":"mystery-settings","level":"1","mode":"race"}""")]
+    [InlineData("""{"type":"mystery-settings","mode":"race"}""")]
+    [InlineData("""{"type":"mystery-settings","level":"hard"}""")]
+    public void Malformed_mystery_settings_are_ignored(string json)
+    {
+        Assert.Null(_reader.Read(json));
+    }
+
+    [Theory]
+    [InlineData("""{"type":"mystery-open"}""")]
+    [InlineData("""{"type":"mystery-open","lead":7}""")]
+    [InlineData("""{"type":"mystery-open","lead":""}""")]
+    [InlineData("""{"type":"mystery-accuse"}""")]
+    [InlineData("""{"type":"mystery-accuse","suspect":null}""")]
+    public void A_malformed_mystery_message_is_ignored(string json)
+    {
+        Assert.Null(_reader.Read(json));
+    }
+
+    [Fact]
     public void A_promotion_longer_than_one_letter_is_dropped()
     {
         var read = _reader.Read("""{"type":"chess-move","from":"a7","to":"a8","promotion":"queen"}""");

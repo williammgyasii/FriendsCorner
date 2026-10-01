@@ -9,6 +9,7 @@ import { selectConnection, selectLobby, selectLobbyView, selectYou } from '../st
 import { Countdown } from './Countdown.tsx'
 import { GameGrid } from './GameGrid.tsx'
 import { MediaSetup } from './MediaSetup.tsx'
+import { MysterySettings } from './MysterySettings.tsx'
 import { PlayerSlots } from './PlayerSlots.tsx'
 
 const connectionWords = {
@@ -38,6 +39,7 @@ export function LobbyScreen({ faces }: { faces: Faces }) {
         <Header view={view} />
         <PlayerSlots view={view} capacity={capacity} you={you} faces={faces} />
         <GameGrid view={view} />
+        {view.mystery && <MysterySettings view={view.mystery} />}
         <MediaSetup faces={faces} />
       </div>
       <ActionBar view={view} />
@@ -57,7 +59,7 @@ function Header({ view }: { view: LobbyView }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex flex-col gap-2">
-        <p className="text-xs font-bold tracking-[0.2em] text-[#8a5a2b] uppercase">Friends Corner · Lobby</p>
+        <p className="text-xs font-bold tracking-[0.2em] text-[#d9a25f] uppercase">Friends Corner · Lobby</p>
         <AnimatePresence mode="wait">
           <motion.h1
             key={view.headline}
@@ -75,7 +77,7 @@ function Header({ view }: { view: LobbyView }) {
         type="button"
         whileTap={{ scale: 0.94 }}
         onClick={copy}
-        className="flex items-center gap-2 rounded-full bg-card px-4 py-2.5 font-semibold shadow-[0_4px_0_#e2dace] ring-1 ring-border"
+        className="flex items-center gap-2 rounded-full bg-card px-4 py-2.5 font-semibold shadow-[0_4px_0_var(--edge)] ring-1 ring-border"
       >
         {copied ? <Check className="size-4 text-[#17a864]" aria-hidden /> : <Link2 className="size-4" aria-hidden />}
         {copied ? 'Invite copied!' : 'Copy invite'}
@@ -98,7 +100,7 @@ function ActionBar({ view }: { view: LobbyView }) {
             animate={view.start.enabled ? { scale: [1, 1.04, 1] } : { scale: 1 }}
             transition={view.start.enabled ? { duration: 1.2, repeat: Infinity } : undefined}
             whileTap={view.start.enabled ? { scale: 0.95, y: 4 } : undefined}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-4 text-xl font-bold text-primary-foreground shadow-[0_6px_0_color-mix(in_srgb,var(--primary)_60%,#1c1915)] disabled:bg-muted disabled:text-muted-foreground disabled:shadow-[0_6px_0_#d8d0c3]"
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-4 text-xl font-bold text-primary-foreground shadow-[0_6px_0_color-mix(in_srgb,var(--primary)_60%,#1c1915)] disabled:bg-muted disabled:text-muted-foreground disabled:shadow-[0_6px_0_var(--edge)]"
           >
             {view.start.enabled ? <Play className="size-5 fill-current" aria-hidden /> : null}
             {view.start.label}

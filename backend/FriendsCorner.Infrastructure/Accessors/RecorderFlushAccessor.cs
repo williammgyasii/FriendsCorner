@@ -9,12 +9,15 @@ public sealed class RecorderFlushAccessor : BackgroundService
     private readonly IBoardRecorderAccessor _boards;
     private readonly IChessRecorderAccessor _chess;
     private readonly ILetterTilesRecorderAccessor _tiles;
+    private readonly IMysteryRecorderAccessor _mystery;
 
-    public RecorderFlushAccessor(IBoardRecorderAccessor boards, IChessRecorderAccessor chess, ILetterTilesRecorderAccessor tiles)
+    public RecorderFlushAccessor(
+        IBoardRecorderAccessor boards, IChessRecorderAccessor chess, ILetterTilesRecorderAccessor tiles, IMysteryRecorderAccessor mystery)
     {
         _boards = boards;
         _chess = chess;
         _tiles = tiles;
+        _mystery = mystery;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -27,6 +30,6 @@ public sealed class RecorderFlushAccessor : BackgroundService
         {
         }
 
-        await Task.WhenAll(_boards.WhenQuiet(), _chess.WhenQuiet(), _tiles.WhenQuiet());
+        await Task.WhenAll(_boards.WhenQuiet(), _chess.WhenQuiet(), _tiles.WhenQuiet(), _mystery.WhenQuiet());
     }
 }

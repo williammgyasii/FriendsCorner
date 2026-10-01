@@ -16,6 +16,8 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/rooms': 'http://localhost:5250',
+      '/account': 'http://localhost:5250',
+      '/billing': 'http://localhost:5250',
       '/ws': {
         target: 'http://localhost:5250',
         ws: true,

@@ -1,3 +1,5 @@
+using FriendsCorner.Core.Engines.Mystery;
+
 namespace FriendsCorner.Core.Engines;
 
 public readonly record struct Media(bool Camera, bool Mic);
@@ -22,19 +24,25 @@ public sealed class LobbyEngine
         new("tictactoe", 2),
         new("chess", 2),
         new("tiles", MaxCapacity),
+        new("mystery", 2),
     ];
 
     private readonly List<Seat> _players = [];
     private readonly HashSet<Seat> _ready = [];
     private readonly Dictionary<Seat, Media> _media = new();
+    private readonly Dictionary<Seat, (Guid UserId, string GameName)> _who = new();
 
     public IReadOnlyList<Seat> Players => _players;
 
-    public Seat? Host => _players.Count > 0 ? _players[0] : null;
+    public Guid? HostUserId { get; private set; }
+
+    public Seat? Host => HostUserId is Guid id ? SeatOf(id) : null;
 
     public int Capacity { get; private set; } = MinCapacity;
 
     public string? Pick { get; private set; }
+
+    public MysterySettings Mystery { get; private set; } = MysterySettings.Default;
 
     public DateTimeOffset? CountdownEndsAt { get; private set; }
 
@@ -45,9 +53,10 @@ public sealed class LobbyEngine
     public IReadOnlyList<Seat> Watching => _players.Skip(PlayerCount).ToList();
 
     public bool CanStart =>
+        Host is Seat host &&
         Pick is not null &&
         _players.Count == Capacity &&
-        _players.Skip(1).All(_ready.Contains);
+        _players.Where(seat => seat != host).All(_ready.Contains);
 
     private int PlayerCount
     {
@@ -58,14 +67,43 @@ public sealed class LobbyEngine
         }
     }
 
+    public void AssignHost(Guid userId) => HostUserId = userId;
+
+    public Seat? SeatOf(Guid userId)
+    {
+        foreach (var (seat, who) in _who)
+        {
+            if (who.UserId == userId)
+            {
+                return seat;
+            }
+        }
+
+        return null;
+    }
+
+    public string GameNameOf(Seat seat) => _who.TryGetValue(seat, out var who) ? who.GameName : "";
+
     public bool Join(Seat seat)
     {
-        if (IsFull || _players.Contains(seat))
+        var id = Guid.NewGuid();
+        if (HostUserId is null)
+        {
+            HostUserId = id;
+        }
+
+        return Join(seat, id, "Player");
+    }
+
+    public bool Join(Seat seat, Guid userId, string gameName)
+    {
+        if (SeatOf(userId) is not null || IsFull || _players.Contains(seat))
         {
             return false;
         }
 
         _players.Add(seat);
+        _who[seat] = (userId, gameName);
         _media[seat] = new Media(Camera: true, Mic: true);
         return true;
     }
@@ -79,6 +117,7 @@ public sealed class LobbyEngine
 
         _ready.Remove(seat);
         _media.Remove(seat);
+        _who.Remove(seat);
         CountdownEndsAt = null;
     }
 
@@ -95,6 +134,23 @@ public sealed class LobbyEngine
         }
 
         Pick = game;
+        return true;
+    }
+
+    // Guests readied for the old settings, so a change asks them again.
+    public bool TrySetMystery(Seat by, MysterySettings settings)
+    {
+        if (by != Host || CountdownEndsAt is not null)
+        {
+            return false;
+        }
+
+        if (Mystery != settings)
+        {
+            _ready.Clear();
+        }
+
+        Mystery = settings;
         return true;
     }
 

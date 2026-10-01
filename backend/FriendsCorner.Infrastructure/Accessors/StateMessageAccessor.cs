@@ -2,6 +2,7 @@ using FriendsCorner.Core.Accessors;
 using FriendsCorner.Core.Engines;
 using FriendsCorner.Core.Engines.Games;
 using FriendsCorner.Core.Engines.LetterTiles;
+using FriendsCorner.Core.Engines.Mystery;
 using System.Text.Json;
 
 namespace FriendsCorner.Infrastructure.Accessors;
@@ -57,6 +58,7 @@ public sealed class StateMessageAccessor : IStateMessageAccessor
                         .ToArray(),
                 },
             tiles = room.Game is LetterTilesGame tiles ? Tiles(tiles, you) : null,
+            mystery = room.Game is MysteryGame mystery ? Mystery(mystery.View(you), now) : null,
             players = new { A = Player(Seat.A), B = Player(Seat.B), C = Player(Seat.C), D = Player(Seat.D) },
             lobby = new
             {
@@ -70,11 +72,13 @@ public sealed class StateMessageAccessor : IStateMessageAccessor
                 members = lobby.Players.Select(seat => new
                 {
                     seat = seat.ToString(),
+                    gameName = lobby.GameNameOf(seat),
                     ready = lobby.IsReady(seat),
                     camera = lobby.MediaOf(seat).Camera,
                     mic = lobby.MediaOf(seat).Mic,
                     playing = playing.Contains(seat),
                 }).ToArray(),
+                mystery = new { level = Lower(lobby.Mystery.Level), mode = Lower(lobby.Mystery.Mode) },
             },
         });
     }
@@ -120,6 +124,50 @@ public sealed class StateMessageAccessor : IStateMessageAccessor
                 : null,
         };
     }
+
+    // Written only from one seat's view, which has no place for a secret.
+    // Clocks go out as milliseconds left, like the lobby countdown.
+    private static object Mystery(MysteryView view, DateTimeOffset now) => new
+    {
+        phase = Lower(view.Phase),
+        level = Lower(view.Settings.Level),
+        mode = Lower(view.Settings.Mode),
+        mood = view.Mood is { } mood ? Lower(mood) : null,
+        title = view.Title,
+        setting = view.Setting,
+        victim = view.Victim is { } victim ? new { name = victim.Name, found = victim.Found } : null,
+        suspects = view.Suspects
+            .Select(suspect => new { id = suspect.Id, name = suspect.Name, role = suspect.Role, motive = suspect.Motive, alibi = suspect.Alibi })
+            .ToArray(),
+        places = view.Places.Select(place => new { id = place.Id, name = place.Name }).ToArray(),
+        leads = view.Leads
+            .Select(lead => new { id = lead.Id, kind = Lower(lead.Kind), about = lead.About, text = lead.Text, by = lead.By?.ToString() })
+            .ToArray(),
+        leadsLeft = view.LeadsLeft,
+        picks = new { A = view.Picks.GetValueOrDefault(Seat.A), B = view.Picks.GetValueOrDefault(Seat.B) },
+        @out = view.Out.Select(seat => seat.ToString()).ToArray(),
+        endsInMs = MillisecondsLeft(view.EndsAt, now),
+        locksInMs = MillisecondsLeft(view.LocksAt, now),
+        outcome = view.Outcome is { } outcome
+            ? new
+            {
+                killer = outcome.Killer,
+                how = outcome.How,
+                why = outcome.Why,
+                story = outcome.Story,
+                accused = outcome.Accused,
+                right = outcome.Right,
+                score = outcome.Score,
+                winner = outcome.Winner?.ToString(),
+                timedOut = outcome.TimedOut,
+            }
+            : null,
+    };
+
+    private static int? MillisecondsLeft(DateTimeOffset? at, DateTimeOffset now) =>
+        at is { } then ? Math.Max(0, (int)Math.Ceiling((then - now).TotalMilliseconds)) : null;
+
+    private static string Lower<T>(T value) where T : struct, Enum => value.ToString().ToLowerInvariant();
 
     public string? Answer(GameAnswer answer) => answer switch
     {

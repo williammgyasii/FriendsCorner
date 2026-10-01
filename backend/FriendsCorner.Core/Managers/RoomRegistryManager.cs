@@ -4,7 +4,7 @@ namespace FriendsCorner.Core.Managers;
 
 public interface IRoomRegistryManager
 {
-    string Create();
+    string Create(Guid hostUserId);
 
     bool IsLive(string id);
 
@@ -25,12 +25,14 @@ public sealed class RoomRegistryManager : IRoomRegistryManager
         _factory = factory;
     }
 
-    public string Create()
+    public string Create(Guid hostUserId)
     {
         var id = Guid.NewGuid().ToString("N");
         lock (_gate)
         {
-            _rooms[id] = NewRoom(id);
+            var room = NewRoom(id);
+            room.RememberHost(hostUserId);
+            _rooms[id] = room;
         }
 
         return id;

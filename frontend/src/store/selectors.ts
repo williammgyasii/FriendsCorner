@@ -42,6 +42,8 @@ export const selectTilesView = createSelector([selectTiles, selectYou, (state: R
   tiles ? describeTiles(tiles, you, ui) : null,
 )
 
+export const selectMystery = (state: RootState) => state.room.snapshot?.mystery ?? null
+
 export const selectChessLook = createSelector([selectChess, selectPlayerSeat, selectHere], (chess, seat, here) => {
   if (!chess) {
     return null

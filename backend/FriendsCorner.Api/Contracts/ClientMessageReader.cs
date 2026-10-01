@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FriendsCorner.Core.Engines;
 using FriendsCorner.Core.Engines.LetterTiles;
+using FriendsCorner.Core.Engines.Mystery;
 
 namespace FriendsCorner.Api.Contracts;
 
@@ -55,8 +56,20 @@ public sealed class ClientMessageReader : IClientMessageReader
         "tiles-exchange" when Text(root, "letters") is { Length: > 0 } letters && RackTiles(letters) is { } rack => new ExchangeTiles(rack),
         "tiles-pass" => new PassTurn(),
         "tiles-rematch" => new Rematch(),
+        "mystery-open" when Text(root, "lead") is { Length: > 0 } lead => new OpenLead(lead),
+        "mystery-accuse" when Text(root, "suspect") is { Length: > 0 } suspect => new Accuse(suspect),
+        "mystery-rematch" => new Rematch(),
+        "mystery-withdraw" => new Withdraw(),
+        "mystery-settings" when Named<MysteryLevel>(root, "level") is { } level && Named<MysteryMode>(root, "mode") is { } mode =>
+            new SetMysterySettings(new MysterySettings(level, mode)),
         _ => null,
     };
+
+    // Only the exact lower-case name of a value; never a number or another casing.
+    private static T? Named<T>(JsonElement root, string name) where T : struct, Enum =>
+        Text(root, name) is { } text
+            ? Enum.GetValues<T>().Cast<T?>().FirstOrDefault(value => value.ToString()!.ToLowerInvariant() == text)
+            : null;
 
     private static PlacedTile[]? Placed(JsonElement root)
     {
