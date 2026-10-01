@@ -13,6 +13,8 @@ test('lobby, room sockets, and ICE credentials are handed to the API Worker', ()
 
 test('everything else is the page', () => {
   assert.equal(webRouteFor('/'), 'assets')
+  assert.equal(webRouteFor('/login'), 'assets')
+  assert.equal(webRouteFor('/register'), 'assets')
   assert.equal(webRouteFor('/assets/index-abc.js'), 'assets')
   assert.equal(webRouteFor('/roomsomething'), 'assets')
   assert.equal(webRouteFor('/ws'), 'assets')

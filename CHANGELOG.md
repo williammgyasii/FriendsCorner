@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## Unreleased
 
+### Added
+- Edge rate limits on account, room, billing, and TURN routes (by client IP).
+
+### Fixed
+- `/login` and `/register` on the play app no longer 404 in production.
+
 ## v0.2.0 — 2026-09-30
 
 ### Added
