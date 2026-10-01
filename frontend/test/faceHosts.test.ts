@@ -13,7 +13,15 @@ beforeEach(() => {
       <div data-face="partner" id="tiles-them"></div>
       <div data-face="you" id="tiles-you"></div>
     </section>
+    <section id="mystery-world">
+      <div data-face="you" id="mystery-you"></div>
+      <div data-face="partner" id="mystery-them"></div>
+    </section>
   `
+})
+
+test('a murder mystery puts both faces in its header', () => {
+  assert.deepEqual(ids(faceHosts('mystery', document.body)), ['mystery-you', 'mystery-them'])
 })
 
 const ids = (hosts: ReturnType<typeof faceHosts>) => hosts?.map((host) => host.id) ?? null

@@ -158,7 +158,7 @@ export function describeChess(chess: ChessState, you: Seat, here: { A: boolean; 
     return {
       youAreWhite,
       canMove: false,
-      color: '#1c1915',
+      color: '#a39a8e',
       status: 'Stalemate. Nobody can move, so it is a draw.',
       celebrate: 'Stalemate: a draw',
       canRematch: true,
